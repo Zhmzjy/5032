@@ -1,30 +1,39 @@
 <template>
-  <div class="video-hero">
-    <video
-      :src="videoSrc"
-      autoplay
-      muted
-      loop
-      playsinline
-      class="background-video"
-    ></video>
+  <div class="home-page">
+    <div class="video-hero">
+      <video
+        :src="videoSrc"
+        autoplay
+        muted
+        loop
+        playsinline
+        class="background-video"
+      ></video>
 
-    <div class="video-overlay"></div>
+      <div class="video-overlay"></div>
 
-    <div class="hero-content">
-      <h1 class="hero-title">FitTogether</h1>
-      <p class="hero-subtitle">Join local activities, meet new friends, and stay fit together.</p>
+      <div class="hero-content">
+        <h1 class="hero-title">Welcome To FitTogether</h1>
+        <p class="hero-subtitle">Join local activities, meet new friends, and stay fit together.</p>
+      </div>
     </div>
+
+    <FeatureGrid />
   </div>
 </template>
 
 <script setup>
-import videoFile from '@/assets/Vedio/8480551-hd_1920_1080_25fps.mp4'
+import videoFile from '../assets/Vedio/8480551-hd_1920_1080_25fps.mp4'
+import FeatureGrid from '../components/FeatureGrid.vue'
 
 const videoSrc = videoFile
 </script>
 
 <style scoped>
+.home-page {
+  width: 100%;
+}
+
 .video-hero {
   position: relative;
   width: 100%;

@@ -21,8 +21,13 @@
 
 <style scoped>
 .navbar {
-  background-color: #2c3e50;
+  background: transparent;
   padding: 1rem 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
 }
 
 .nav-container {
@@ -39,6 +44,12 @@
   font-size: 1.5rem;
   font-weight: bold;
   text-decoration: none;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  transition: color 0.3s ease;
+}
+
+.nav-logo:hover {
+  color: #3498db;
 }
 
 .nav-menu {
@@ -50,18 +61,22 @@
 }
 
 .nav-link {
-  color: #fff;
+  color: rgba(255, 255, 255, 0.95);
   text-decoration: none;
-  transition: color 0.3s;
+  transition: all 0.3s ease;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
 }
 
 .nav-link:hover,
 .nav-link.router-link-active {
-  color: #3498db;
+  color: #fff;
+  text-shadow: 2px 2px 6px rgba(0, 0, 0, 1);
 }
 
 .main-content {
-  min-height: calc(100vh - 80px);
+  min-height: 100vh;
   padding: 0;
 }
 
