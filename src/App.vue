@@ -5,7 +5,7 @@
         <RouterLink to="/" class="nav-logo">FitTogether</RouterLink>
         <ul class="nav-menu">
           <li class="nav-item">
-            <RouterLink to="/" class="nav-link">首页</RouterLink>
+            <RouterLink to="/" class="nav-link">HomePage</RouterLink>
           </li>
         </ul>
       </div>
@@ -17,7 +17,6 @@
 </template>
 
 <script setup>
-// Component logic will be added here as needed
 </script>
 
 <style scoped>
@@ -63,7 +62,7 @@
 
 .main-content {
   min-height: calc(100vh - 80px);
-  padding: 2rem 1rem;
+  padding: 0;
 }
 
 @media (max-width: 768px) {
