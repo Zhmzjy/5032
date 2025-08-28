@@ -8,6 +8,11 @@
             <RouterLink to="/" class="nav-link">HomePage</RouterLink>
           </li>
         </ul>
+        <div class="nav-actions">
+          <a href="#" class="auth-link" @click.prevent="handleLogin">Login</a>
+          <a href="#" class="auth-link" @click.prevent="handleRegister">Register</a>
+          <a href="#" class="cta-button" @click.prevent="handleBecomeCoach">Become a Coach</a>
+        </div>
       </div>
     </nav>
     <main class="main-content">
@@ -17,6 +22,17 @@
 </template>
 
 <script setup>
+const handleLogin = () => {
+  alert('Login functionality coming soon!')
+}
+
+const handleRegister = () => {
+  alert('Register functionality coming soon!')
+}
+
+const handleBecomeCoach = () => {
+  alert('Become a Coach functionality coming soon!')
+}
 </script>
 
 <style scoped>
@@ -73,6 +89,34 @@
 .nav-link.router-link-active {
   color: #fff;
   text-shadow: 2px 2px 6px rgba(0, 0, 0, 1);
+}
+
+.nav-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.auth-link {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.auth-link:hover {
+  color: #3498db;
+}
+
+.cta-button {
+  background-color: #3498db;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+}
+
+.cta-button:hover {
+  background-color: #2980b9;
 }
 
 .main-content {
