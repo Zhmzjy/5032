@@ -5,6 +5,7 @@
         <div class="card shadow-sm rounded-4">
           <div class="card-body p-4">
             <h2 class="card-title text-center mb-4">Create account</h2>
+            <div v-if="formError" class="alert alert-danger" role="alert">{{ formError }}</div>
             <form @submit.prevent="handleRegister">
               <div class="mb-3">
                 <label for="name" class="form-label">Name</label>
@@ -41,34 +42,74 @@
               </div>
               <div class="mb-3">
                 <label for="password" class="form-label">Password</label>
-                <input
-                  type="password"
-                  class="form-control"
-                  :class="{'is-invalid': touched && !pwdValid}"
-                  id="password"
-                  v-model="password"
-                  autocomplete="new-password"
-                  @blur="touched = true"
-                  :disabled="submitting"
-                  required
-                />
+                <div class="position-relative">
+                  <input
+                    :type="showPwd ? 'text' : 'password'"
+                    class="form-control pe-5"
+                    :class="{'is-invalid': touched && !pwdValid}"
+                    id="password"
+                    v-model="password"
+                    autocomplete="new-password"
+                    @blur="touched = true"
+                    :disabled="submitting"
+                    required
+                  />
+                  <button
+                    type="button"
+                    class="position-absolute top-50 end-0 translate-middle-y pe-3"
+                    style="background: transparent; border: none;"
+                    :aria-label="showPwd ? 'Hide password' : 'Show password'"
+                    @click="showPwd = !showPwd"
+                    :disabled="submitting"
+                  >
+                    <svg v-if="showPwd" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                      <path d="M21 2l-18 18"/>
+                    </svg>
+                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </button>
+                </div>
                 <div v-if="touched && !pwdValid" class="invalid-feedback">
                   Password must be at least 8 characters and contain at least one letter and one digit.
                 </div>
               </div>
               <div class="mb-3">
                 <label for="confirmPassword" class="form-label">Confirm password</label>
-                <input
-                  type="password"
-                  class="form-control"
-                  :class="{'is-invalid': touched && !matchValid}"
-                  id="confirmPassword"
-                  v-model="confirmPassword"
-                  autocomplete="new-password"
-                  @blur="touched = true"
-                  :disabled="submitting"
-                  required
-                />
+                <div class="position-relative">
+                  <input
+                    :type="showConfirm ? 'text' : 'password'"
+                    class="form-control pe-5"
+                    :class="{'is-invalid': touched && !matchValid}"
+                    id="confirmPassword"
+                    v-model="confirmPassword"
+                    autocomplete="new-password"
+                    @blur="touched = true"
+                    :disabled="submitting"
+                    required
+                  />
+                  <button
+                    type="button"
+                    class="position-absolute top-50 end-0 translate-middle-y pe-3"
+                    style="background: transparent; border: none;"
+                    :aria-label="showConfirm ? 'Hide password' : 'Show password'"
+                    @click="showConfirm = !showConfirm"
+                    :disabled="submitting"
+                  >
+                    <svg v-if="showConfirm" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                      <path d="M21 2l-18 18"/>
+                    </svg>
+                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </button>
+                </div>
                 <div v-if="touched && !matchValid" class="invalid-feedback">
                   Passwords do not match.
                 </div>
@@ -97,7 +138,7 @@
                 :disabled="submitting || !formValid"
               >
                 <span v-if="submitting" class="spinner-border spinner-border-sm me-2" role="status"></span>
-                {{ submitting ? 'Creating account...' : 'Create account' }}
+                {{ submitting ? 'Creating…' : 'Create account' }}
               </button>
             </form>
           </div>
@@ -126,6 +167,9 @@ const confirmPassword = ref('')
 const terms = ref(false)
 const submitting = ref(false)
 const touched = ref(false)
+const showPwd = ref(false)
+const showConfirm = ref(false)
+const formError = ref('')
 
 const nameValid = computed(() => {
   return name.value.trim().length >= 2
@@ -155,6 +199,8 @@ const formValid = computed(() => {
 })
 
 const handleRegister = async () => {
+  formError.value = ''
+
   if (!formValid.value) {
     touched.value = true
     return
