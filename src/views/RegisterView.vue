@@ -44,23 +44,23 @@
                 <label for="password" class="form-label">Password</label>
                 <div class="position-relative">
                   <input
-                    :type="showPwd ? 'text' : 'password'"
-                    class="form-control pe-5"
-                    :class="{'is-invalid': touched && !pwdValid}"
-                    id="password"
-                    v-model="password"
-                    autocomplete="new-password"
-                    @blur="touched = true"
-                    :disabled="submitting"
-                    required
+                      :type="showPwd ? 'text' : 'password'"
+                      class="form-control pe-5"
+                      :class="{'is-invalid': touched && !pwdValid}"
+                      id="password"
+                      v-model="password"
+                      autocomplete="new-password"
+                      @blur="touched = true"
+                      :disabled="submitting"
+                      required
                   />
                   <button
-                    type="button"
-                    class="position-absolute top-50 end-0 translate-middle-y pe-3"
-                    style="background: transparent; border: none;"
-                    :aria-label="showPwd ? 'Hide password' : 'Show password'"
-                    @click="showPwd = !showPwd"
-                    :disabled="submitting"
+                      type="button"
+                      class="position-absolute top-50 end-0 translate-middle-y pe-3"
+                      style="background: transparent; border: none;"
+                      :aria-label="showPwd ? 'Hide password' : 'Show password'"
+                      @click="showPwd = !showPwd"
+                      :disabled="submitting"
                   >
                     <svg v-if="showPwd" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -73,8 +73,8 @@
                     </svg>
                   </button>
                 </div>
-                <div v-if="touched && !pwdValid" class="invalid-feedback">
-                  Password must be at least 8 characters and contain at least one letter and one digit.
+                <div v-if="touched && !pwdValid" class="invalid-feedback d-block">
+                  Password must be 8–16 characters and include at least one uppercase letter, one lowercase letter, and one digit.
                 </div>
               </div>
               <div class="mb-3">
@@ -181,9 +181,11 @@ const emailValid = computed(() => {
 })
 
 const pwdValid = computed(() => {
-  const hasLetter = /[a-zA-Z]/.test(password.value)
+  const hasUpper = /[A-Z]/.test(password.value)
+  const hasLower = /[a-z]/.test(password.value)
   const hasDigit = /\d/.test(password.value)
-  return password.value.length >= 8 && hasLetter && hasDigit
+  const lengthValid = password.value.length >= 8 && password.value.length <= 16
+  return hasUpper && hasLower && hasDigit && lengthValid
 })
 
 const matchValid = computed(() => {
@@ -222,3 +224,14 @@ const handleRegister = async () => {
   router.push('/login')
 }
 </script>
+<style scoped>
+.form-control.is-invalid,
+.was-validated .form-control:invalid {
+  background-image: none !important;
+  background-size: 0 !important;
+  background-position: right center !important;
+}
+.form-control.pe-5.is-invalid {
+  padding-right: 3rem !important;
+}
+</style>
