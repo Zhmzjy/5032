@@ -72,9 +72,10 @@ const closeDrawer = () => {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: 1000;
   background: transparent;
   padding: 0;
+  height: 60px;
 }
 
 .nav-container {
@@ -85,6 +86,7 @@ const closeDrawer = () => {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
+  height: 60px;
 }
 
 .nav-center {
@@ -107,7 +109,7 @@ const closeDrawer = () => {
 }
 
 .brand-link:hover {
-  color: #3498db;
+  color: #5a6268;
 }
 
 .hamburger-btn {
@@ -116,10 +118,21 @@ const closeDrawer = () => {
   color: #fff;
   font-size: 1.5rem;
   cursor: pointer;
-  padding: 0.5rem 0;
+  padding: 0.75rem;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
   transition: color 0.3s ease;
   margin-left: auto;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.hamburger-btn:hover {
+  color: #3498db;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .drawer-backdrop {
@@ -128,22 +141,24 @@ const closeDrawer = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 200;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1100;
   animation: fadeIn 0.3s ease;
 }
 
 .drawer {
   position: fixed;
   top: 0;
-  right: -260px;
-  width: 260px;
-  max-width: 80vw;
+  right: -320px;
+  width: 320px;
+  max-width: 85vw;
   height: 100vh;
-  background: linear-gradient(180deg, #333333);
-  z-index: 201;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(15px);
+  z-index: 1200;
   transition: right 0.3s ease;
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.4);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+  overflow-y: auto;
 }
 
 .drawer-open {
@@ -153,35 +168,38 @@ const closeDrawer = () => {
 .drawer-header {
   display: flex;
   justify-content: flex-end;
-  padding: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
 }
 
 .close-btn {
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.8);
-  font-size: 20px;
+  font-size: 24px;
   cursor: pointer;
-  padding: 0.25rem;
+  padding: 0.5rem;
   line-height: 1;
-  transition: color 0.3s ease;
-  width: 20px;
-  height: 20px;
+  transition: all 0.3s ease;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
 }
 
 .close-btn:hover {
   color: #fff;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .drawer-content {
-  padding: 1rem 0.5rem;
+  padding: 1.5rem 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem;
 }
 
 .section-title {
@@ -189,9 +207,9 @@ const closeDrawer = () => {
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  padding: 0.75rem 1rem 0.5rem;
-  margin-top: 0.5rem;
+  letter-spacing: 1px;
+  padding: 1rem 1.5rem 0.5rem;
+  margin-top: 1rem;
 }
 
 .section-title:first-child {
@@ -199,47 +217,67 @@ const closeDrawer = () => {
 }
 
 .drawer-link {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
-  line-height: 1.2;
-  padding: 8px 1rem;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  line-height: 1.4;
+  padding: 1rem 1.5rem;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin: 0 0.5rem;
+  gap: 1rem;
+  border-left: 3px solid transparent;
+  min-height: 48px;
 }
 
 .drawer-link:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
+  border-left-color: rgba(255, 255, 255, 0.4);
 }
 
 .drawer-link.router-link-active {
-  background: #0b66ff;
+  background: rgba(255, 255, 255, 0.15);
   color: #fff;
+  border-left-color: rgba(255, 255, 255, 0.6);
 }
 
-.drawer-link-bordered {
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  margin-top: 0.5rem;
-}
+@media (max-width: 576px) {
+  .nav-container {
+    padding: 0 0.75rem;
+  }
 
-.drawer-link-bordered:hover {
-  border-color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.05);
-}
+  .brand-link {
+    font-size: 1.25rem;
+  }
 
-.link-icon {
-  font-size: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
+  .hamburger-btn {
+    padding: 0.5rem;
+    font-size: 1.25rem;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .drawer {
+    width: 280px;
+    max-width: 90vw;
+  }
+
+  .drawer-content {
+    padding: 1rem 0;
+  }
+
+  .section-title {
+    padding: 0.75rem 1rem 0.25rem;
+    font-size: 11px;
+  }
+
+  .drawer-link {
+    font-size: 15px;
+    padding: 0.75rem 1rem;
+    min-height: 44px;
+  }
 }
 
 @keyframes fadeIn {
@@ -248,21 +286,6 @@ const closeDrawer = () => {
   }
   to {
     opacity: 1;
-  }
-}
-
-@media (max-width: 768px) {
-  .drawer {
-    width: 240px;
-    right: -240px;
-  }
-
-  .brand-link {
-    font-size: 1.25rem;
-  }
-
-  .hamburger-btn {
-    font-size: 1.25rem;
   }
 }
 </style>
