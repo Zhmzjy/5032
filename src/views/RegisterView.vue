@@ -212,13 +212,24 @@ const handleRegister = async () => {
 
   await new Promise(resolve => setTimeout(resolve, 600))
 
-  console.log('Registration attempt:', {
+  const users = JSON.parse(localStorage.getItem('users') || '[]')
+  const normalizedEmail = email.value.toLowerCase()
+
+  const existingUser = users.find(user => user.email.toLowerCase() === normalizedEmail)
+
+  if (existingUser) {
+    formError.value = 'This email is already registered.'
+    submitting.value = false
+    return
+  }
+
+  users.push({
     name: name.value,
-    email: email.value,
-    password: password.value,
-    confirmPassword: confirmPassword.value,
-    terms: terms.value
+    email: normalizedEmail,
+    password: password.value
   })
+
+  localStorage.setItem('users', JSON.stringify(users))
 
   submitting.value = false
   router.push('/login')

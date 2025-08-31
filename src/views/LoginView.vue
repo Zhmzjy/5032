@@ -100,24 +100,26 @@ const formError = ref('')
 
 const handleLogin = async () => {
   formError.value = ''
-
   loading.value = true
 
   await new Promise(resolve => setTimeout(resolve, 600))
 
-  const simulateFailure = Math.random() < 0.5
+  const users = JSON.parse(localStorage.getItem('users') || '[]')
+  const normalizedEmail = email.value.toLowerCase()
 
-  if (simulateFailure) {
-    formError.value = 'Email or password is incorrect.'
+  const user = users.find(u => u.email.toLowerCase() === normalizedEmail)
+
+  if (!user) {
+    formError.value = 'Account not found, please register first.'
     loading.value = false
     return
   }
 
-  console.log('Login attempt:', {
-    email: email.value,
-    password: password.value,
-    remember: remember.value
-  })
+  if (user.password !== password.value) {
+    formError.value = 'Account or password is incorrect.'
+    loading.value = false
+    return
+  }
 
   loading.value = false
   router.push('/')
