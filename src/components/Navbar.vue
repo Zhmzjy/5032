@@ -36,17 +36,42 @@
       </div>
 
       <div class="drawer-content">
-        <div class="section-title">Account</div>
-        <RouterLink to="/login" class="drawer-link" @click="closeDrawer">
+        <div v-if="isAuthenticated" class="user-info">
+          <div class="welcome-text">Welcome, {{ currentUser.name }}</div>
+          <div class="user-role">{{ currentUser.role === 'coach' ? 'Coach' : 'Member' }}</div>
+        </div>
+
+        <div v-if="!isAuthenticated" class="section-title">Account</div>
+        <RouterLink v-if="!isAuthenticated" to="/login" class="drawer-link" @click="closeDrawer">
           Login
         </RouterLink>
-        <RouterLink to="/register" class="drawer-link" @click="closeDrawer">
+        <RouterLink v-if="!isAuthenticated" to="/register" class="drawer-link" @click="closeDrawer">
           Register
         </RouterLink>
+
+        <div v-if="isAuthenticated" class="section-title">Dashboard</div>
+        <RouterLink v-if="isAuthenticated && currentUser.role === 'coach'" to="/coach" class="drawer-link" @click="closeDrawer">
+          Coach Dashboard
+        </RouterLink>
+        <RouterLink v-if="isAuthenticated && currentUser.role === 'user'" to="/dashboard" class="drawer-link" @click="closeDrawer">
+          My Dashboard
+        </RouterLink>
+
         <div class="section-title">Coach</div>
-        <RouterLink to="/coaches" class="drawer-link" @click="closeDrawer">
+        <RouterLink v-if="!isAuthenticated || currentUser.role === 'user'" to="/coaches" class="drawer-link" @click="closeDrawer">
           Become a Coach
         </RouterLink>
+
+        <div v-if="isAuthenticated" class="section-title">Reviews</div>
+        <RouterLink v-if="isAuthenticated" to="/reviews" class="drawer-link" @click="closeDrawer">
+          Reviews & Ratings
+        </RouterLink>
+
+        <div v-if="isAuthenticated" class="logout-section">
+          <button class="logout-btn" @click="handleLogout">
+            Logout
+          </button>
+        </div>
       </div>
     </div>
   </nav>
@@ -54,6 +79,11 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuth } from '../auth/authService'
+
+const router = useRouter()
+const { currentUser, isAuthenticated, logout } = useAuth()
 
 const isDrawerOpen = ref(false)
 
@@ -63,6 +93,12 @@ const toggleDrawer = () => {
 
 const closeDrawer = () => {
   isDrawerOpen.value = false
+}
+
+const handleLogout = () => {
+  logout()
+  closeDrawer()
+  router.push('/')
 }
 </script>
 
@@ -202,6 +238,24 @@ const closeDrawer = () => {
   gap: 0.5rem;
 }
 
+.user-info {
+  padding: 0 1.5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.welcome-text {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.user-role {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 400;
+}
+
 .section-title {
   color: rgba(255, 255, 255, 0.6);
   font-size: 12px;
@@ -241,6 +295,28 @@ const closeDrawer = () => {
   background: rgba(255, 255, 255, 0.15);
   color: #fff;
   border-left-color: rgba(255, 255, 255, 0.6);
+}
+
+.logout-section {
+  margin-top: auto;
+  padding: 0 1.5rem 1.5rem;
+  text-align: center;
+}
+
+.logout-btn {
+  background: #e74c3c;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.logout-btn:hover {
+  background: #c0392b;
 }
 
 @media (max-width: 576px) {

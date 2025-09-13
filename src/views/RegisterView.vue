@@ -8,19 +8,19 @@
             <div v-if="formError" class="alert alert-danger" role="alert">{{ formError }}</div>
             <form @submit.prevent="handleRegister">
               <div class="mb-3">
-                <label for="name" class="form-label">Name</label>
+                <label for="name" class="form-label">Full Name</label>
                 <input
                   type="text"
                   class="form-control"
                   :class="{'is-invalid': touched && !nameValid}"
                   id="name"
-                  v-model="name"
+                  v-model="fullName"
                   @blur="touched = true"
                   :disabled="submitting"
-                  required
+                  placeholder="Enter your full name"
                 />
                 <div v-if="touched && !nameValid" class="invalid-feedback">
-                  Name must be at least 2 characters long.
+                  Full name is required.
                 </div>
               </div>
               <div class="mb-3">
@@ -74,7 +74,7 @@
                   </button>
                 </div>
                 <div v-if="touched && !pwdValid" class="invalid-feedback d-block">
-                  Password must be 8–16 characters and include at least one uppercase letter, one lowercase letter, and one digit.
+                  Password must be at least 8 characters with at least one letter and one digit.
                 </div>
               </div>
               <div class="mb-3">
@@ -111,26 +111,20 @@
                   </button>
                 </div>
                 <div v-if="touched && !matchValid" class="invalid-feedback">
-                  Passwords do not match.
+                  Passwords must match.
                 </div>
               </div>
-              <div class="mb-3 form-check">
-                <input
-                  type="checkbox"
-                  class="form-check-input"
-                  :class="{'is-invalid': touched && !termsValid}"
-                  id="terms"
-                  v-model="terms"
-                  @change="touched = true"
+              <div class="mb-3">
+                <label for="role" class="form-label">Role</label>
+                <select
+                  class="form-select"
+                  id="role"
+                  v-model="role"
                   :disabled="submitting"
-                  required
-                />
-                <label class="form-check-label" for="terms">
-                  I agree to the terms and conditions
-                </label>
-                <div v-if="touched && !termsValid" class="invalid-feedback">
-                  You must accept the terms and conditions.
-                </div>
+                >
+                  <option value="user">User</option>
+                  <option value="coach">Coach</option>
+                </select>
               </div>
               <button
                 type="submit"
@@ -157,14 +151,15 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { register } from '../auth/authService'
 
 const router = useRouter()
 
-const name = ref('')
+const fullName = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
-const terms = ref(false)
+const role = ref('user')
 const submitting = ref(false)
 const touched = ref(false)
 const showPwd = ref(false)
@@ -172,7 +167,7 @@ const showConfirm = ref(false)
 const formError = ref('')
 
 const nameValid = computed(() => {
-  return name.value.trim().length >= 2
+  return fullName.value.trim().length > 0
 })
 
 const emailValid = computed(() => {
@@ -181,23 +176,18 @@ const emailValid = computed(() => {
 })
 
 const pwdValid = computed(() => {
-  const hasUpper = /[A-Z]/.test(password.value)
-  const hasLower = /[a-z]/.test(password.value)
+  const hasLetter = /[a-zA-Z]/.test(password.value)
   const hasDigit = /\d/.test(password.value)
-  const lengthValid = password.value.length >= 8 && password.value.length <= 16
-  return hasUpper && hasLower && hasDigit && lengthValid
+  const lengthValid = password.value.length >= 8
+  return hasLetter && hasDigit && lengthValid
 })
 
 const matchValid = computed(() => {
   return confirmPassword.value === password.value && confirmPassword.value.length > 0
 })
 
-const termsValid = computed(() => {
-  return terms.value === true
-})
-
 const formValid = computed(() => {
-  return nameValid.value && emailValid.value && pwdValid.value && matchValid.value && termsValid.value
+  return nameValid.value && emailValid.value && pwdValid.value && matchValid.value
 })
 
 const handleRegister = async () => {
@@ -210,29 +200,20 @@ const handleRegister = async () => {
 
   submitting.value = true
 
-  await new Promise(resolve => setTimeout(resolve, 600))
-
-  const users = JSON.parse(localStorage.getItem('users') || '[]')
-  const normalizedEmail = email.value.toLowerCase()
-
-  const existingUser = users.find(user => user.email.toLowerCase() === normalizedEmail)
-
-  if (existingUser) {
-    formError.value = 'This email is already registered.'
+  try {
+    await new Promise(resolve => setTimeout(resolve, 600))
+    await register({
+      name: fullName.value,
+      email: email.value,
+      password: password.value,
+      role: role.value
+    })
+    router.push('/login')
+  } catch (error) {
+    formError.value = error.message
+  } finally {
     submitting.value = false
-    return
   }
-
-  users.push({
-    name: name.value,
-    email: normalizedEmail,
-    password: password.value
-  })
-
-  localStorage.setItem('users', JSON.stringify(users))
-
-  submitting.value = false
-  router.push('/login')
 }
 </script>
 <style scoped>

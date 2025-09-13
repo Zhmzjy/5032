@@ -179,9 +179,14 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuth } from '../auth/authService'
 
-const name = ref('')
-const email = ref('')
+const router = useRouter()
+const { currentUser, isAuthenticated, updateUserRole } = useAuth()
+
+const name = ref(currentUser.value?.name || '')
+const email = ref(currentUser.value?.email || '')
 const phone = ref('')
 const specialization = ref('')
 const experience = ref('')
@@ -199,43 +204,58 @@ const phoneValid = computed(() => {
   return phoneDigits.length === 10 && (phoneDigits.startsWith('04') || phoneDigits.startsWith('02') || phoneDigits.startsWith('03') || phoneDigits.startsWith('07') || phoneDigits.startsWith('08'))
 })
 const specializationValid = computed(() => specialization.value !== '')
-const experienceValid = computed(() => {
-  const exp = Number(experience.value)
-  return Number.isInteger(exp) && exp >= 1 && exp <= 50
-})
+const experienceValid = computed(() => experience.value >= 1 && experience.value <= 50)
 const bioValid = computed(() => bio.value.trim().length >= 20)
 const termsValid = computed(() => terms.value === true)
-const formValid = computed(() =>
-  nameValid.value &&
-  emailValid.value &&
-  phoneValid.value &&
-  specializationValid.value &&
-  experienceValid.value &&
-  bioValid.value &&
-  termsValid.value
-)
+
+const formValid = computed(() => {
+  return nameValid.value && emailValid.value && phoneValid.value &&
+         specializationValid.value && experienceValid.value && bioValid.value && termsValid.value
+})
 
 const handleSubmit = async () => {
+  if (!isAuthenticated.value) {
+    formError.value = 'Please login to submit a coach application.'
+    return
+  }
+
   if (!formValid.value) {
     touched.value = true
     return
   }
 
   loading.value = true
+  formError.value = null
 
-  console.log({
-    name: name.value,
-    email: email.value,
-    phone: phone.value,
-    specialization: specialization.value,
-    experience: experience.value,
-    certifications: certifications.value,
-    bio: bio.value,
-    terms: terms.value
-  })
+  try {
+    await new Promise(resolve => setTimeout(resolve, 800))
 
-  await new Promise(resolve => setTimeout(resolve, 800))
-  loading.value = false
+    const applicationData = {
+      userId: currentUser.value.id,
+      name: name.value,
+      email: email.value,
+      phone: phone.value,
+      specialization: specialization.value,
+      experience: experience.value,
+      certifications: certifications.value,
+      bio: bio.value,
+      appliedAt: new Date().toISOString(),
+      status: 'approved'
+    }
+
+    const applications = JSON.parse(localStorage.getItem('coachApplications') || '[]')
+    applications.push(applicationData)
+    localStorage.setItem('coachApplications', JSON.stringify(applications))
+
+    updateUserRole(currentUser.value.id, 'coach')
+
+    alert('Congratulations! Your coach application has been approved. You are now a certified coach!')
+    router.push('/coach')
+  } catch (error) {
+    formError.value = 'An error occurred while processing your application. Please try again.'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 

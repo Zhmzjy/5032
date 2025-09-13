@@ -87,9 +87,11 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
+import { login } from '../auth/authService'
 
 const router = useRouter()
+const route = useRoute()
 
 const email = ref('')
 const password = ref('')
@@ -102,26 +104,20 @@ const handleLogin = async () => {
   formError.value = ''
   loading.value = true
 
-  await new Promise(resolve => setTimeout(resolve, 600))
+  try {
+    await new Promise(resolve => setTimeout(resolve, 600))
+    const user = await login({ email: email.value, password: password.value })
 
-  const users = JSON.parse(localStorage.getItem('users') || '[]')
-  const normalizedEmail = email.value.toLowerCase()
-
-  const user = users.find(u => u.email.toLowerCase() === normalizedEmail)
-
-  if (!user) {
-    formError.value = 'Account not found, please register first.'
+    const nextPath = route.query.next
+    if (nextPath && typeof nextPath === 'string') {
+      router.push(decodeURIComponent(nextPath))
+    } else {
+      router.push(user.role === 'coach' ? '/coach' : '/dashboard')
+    }
+  } catch (error) {
+    formError.value = error.message
+  } finally {
     loading.value = false
-    return
   }
-
-  if (user.password !== password.value) {
-    formError.value = 'Account or password is incorrect.'
-    loading.value = false
-    return
-  }
-
-  loading.value = false
-  router.push('/')
 }
 </script>
