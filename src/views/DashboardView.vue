@@ -4,12 +4,58 @@
       <div class="col-12">
         <div class="welcome-header mb-4">
           <h1 class="h3">Welcome back, {{ currentUser.name }}!</h1>
-          <p class="text-muted">Track your fitness journey and discover new activities</p>
+          <p class="text-muted">
+            {{ currentUser.role === 'coach' ? 'Manage your activities and connect with your community' : 'Track your fitness journey and discover new activities' }}
+          </p>
         </div>
       </div>
     </div>
 
-    <div class="row g-4">
+    <div v-if="currentUser.role === 'coach'" class="row g-4">
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 text-center">
+          <div class="card-body">
+            <h5 class="card-title">Active Classes</h5>
+            <div class="stat-number text-primary">{{ activeClasses.length }}</div>
+            <small class="text-muted">this month</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 text-center">
+          <div class="card-body">
+            <h5 class="card-title">Total Students</h5>
+            <div class="stat-number text-success">{{ totalStudents }}</div>
+            <small class="text-muted">enrolled</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 text-center">
+          <div class="card-body">
+            <h5 class="card-title">Average Rating</h5>
+            <div class="stat-number text-warning">{{ averageRating.toFixed(1) }}</div>
+            <div class="rating-stars">
+              <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(averageRating) }">★</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-3">
+        <div class="card h-100 text-center">
+          <div class="card-body">
+            <h5 class="card-title">Reviews</h5>
+            <div class="stat-number text-info">{{ coachReviews.length }}</div>
+            <small class="text-muted">total reviews</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="row g-4">
       <div class="col-md-6 col-lg-4">
         <div class="card h-100">
           <div class="card-body">
@@ -54,11 +100,11 @@
       <div class="col-12">
         <div class="card">
           <div class="card-header">
-            <h5 class="mb-0">Recent Activities</h5>
+            <h5 class="mb-0">{{ currentUser.role === 'coach' ? 'Your Classes' : 'Recent Activities' }}</h5>
           </div>
           <div class="card-body">
             <div v-if="recentActivities.length === 0" class="text-center text-muted py-4">
-              No recent activities. Start exploring to find activities near you!
+              {{ currentUser.role === 'coach' ? 'No classes scheduled. Create your first class!' : 'No recent activities. Start exploring to find activities near you!' }}
             </div>
             <div v-else class="row g-3">
               <div v-for="activity in recentActivities" :key="activity.id" class="col-md-6 col-lg-4">
@@ -83,14 +129,31 @@
             <h5 class="mb-0">Quick Actions</h5>
           </div>
           <div class="card-body">
-            <div class="row g-3">
+            <div v-if="currentUser.role === 'coach'" class="row g-3">
+              <div class="col-md-4">
+                <button class="btn btn-primary w-100">
+                  Create New Class
+                </button>
+              </div>
+              <div class="col-md-4">
+                <RouterLink to="/reviews" class="btn btn-outline-primary w-100">
+                  View Reviews
+                </RouterLink>
+              </div>
+              <div class="col-md-4">
+                <button class="btn btn-outline-secondary w-100" @click="refreshData">
+                  Refresh Data
+                </button>
+              </div>
+            </div>
+            <div v-else class="row g-3">
               <div class="col-md-4">
                 <RouterLink to="/reviews" class="btn btn-primary w-100">
                   Write a Review
                 </RouterLink>
               </div>
               <div class="col-md-4">
-                <RouterLink to="/coaches" class="btn btn-outline-primary w-100">
+                <RouterLink v-if="currentUser.role !== 'coach'" to="/coaches" class="btn btn-outline-primary w-100">
                   Become a Coach
                 </RouterLink>
               </div>
@@ -108,13 +171,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useAuth } from '../auth/authService'
 
 const { currentUser } = useAuth()
 
 const userActivities = ref([])
 const userReviews = ref([])
+const activeClasses = ref([])
+const coachReviews = ref([])
 const recentActivities = ref([
   {
     id: 1,
@@ -139,12 +204,28 @@ const recentActivities = ref([
   }
 ])
 
+const totalStudents = computed(() => {
+  return activeClasses.value.reduce((total, cls) => total + (cls.students || 0), 0)
+})
+
+const averageRating = computed(() => {
+  if (coachReviews.value.length === 0) return 0
+  const total = coachReviews.value.reduce((sum, review) => sum + review.rating, 0)
+  return total / coachReviews.value.length
+})
+
 const loadUserData = () => {
   const reviews = JSON.parse(localStorage.getItem('reviews') || '[]')
-  userReviews.value = reviews.filter(review => review.userId === currentUser.value?.id)
 
-  const activities = JSON.parse(localStorage.getItem('userActivities') || '[]')
-  userActivities.value = activities.filter(activity => activity.userId === currentUser.value?.id)
+  if (currentUser.value?.role === 'coach') {
+    coachReviews.value = reviews.filter(review => review.coachId === currentUser.value?.id)
+    const classes = JSON.parse(localStorage.getItem('classes') || '[]')
+    activeClasses.value = classes.filter(cls => cls.coachId === currentUser.value?.id)
+  } else {
+    userReviews.value = reviews.filter(review => review.userId === currentUser.value?.id)
+    const activities = JSON.parse(localStorage.getItem('userActivities') || '[]')
+    userActivities.value = activities.filter(activity => activity.userId === currentUser.value?.id)
+  }
 }
 
 const refreshData = () => {
@@ -159,7 +240,7 @@ onMounted(() => {
 <style scoped>
 .welcome-header {
   text-align: center;
-  padding: 2rem 0;
+  margin-bottom: 2rem;
 }
 
 .activity-count {
@@ -167,16 +248,36 @@ onMounted(() => {
   margin-top: 1rem;
 }
 
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: bold;
+  display: block;
+  margin: 0.5rem 0;
+}
+
+.rating-stars {
+  margin-top: 0.5rem;
+}
+
+.star {
+  color: #ddd;
+  font-size: 1.2rem;
+}
+
+.star.filled {
+  color: #ffc107;
+}
+
 .activity-card {
-  background: #f8f9fa;
-  border-radius: 8px;
   padding: 1rem;
-  border-left: 4px solid #007bff;
+  border: 1px solid #e9ecef;
+  border-radius: 0.5rem;
+  background: #f8f9fa;
+  height: 100%;
 }
 
 .activity-title {
   color: #495057;
-  font-weight: 600;
   margin-bottom: 0.5rem;
 }
 
@@ -187,17 +288,6 @@ onMounted(() => {
 }
 
 .activity-meta {
-  border-top: 1px solid #dee2e6;
-  padding-top: 0.5rem;
-}
-
-.card {
-  border: none;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  transition: transform 0.2s ease;
-}
-
-.card:hover {
-  transform: translateY(-2px);
+  margin-top: auto;
 }
 </style>

@@ -26,7 +26,7 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('../views/DashboardView.vue'),
-      meta: { requiresAuth: true, roles: ['user'] }
+      meta: { requiresAuth: true, roles: ['user', 'coach'] }
     },
     {
       path: '/coach',
@@ -55,22 +55,18 @@ router.beforeEach((to, from, next) => {
   const userRole = session?.role
 
   if (to.meta.requiresAuth && !isAuthenticated) {
-    const returnUrl = to.fullPath !== '/' ? to.fullPath : null
-    const loginPath = returnUrl ? `/login?next=${encodeURIComponent(returnUrl)}` : '/login'
-    next(loginPath)
+    next({ name: 'login', query: { next: to.fullPath } })
     return
   }
 
   if (to.meta.guestOnly && isAuthenticated) {
-    next('/dashboard')
+    next({ name: 'dashboard' })
     return
   }
 
-  if (to.meta.roles && isAuthenticated) {
-    if (!to.meta.roles.includes(userRole)) {
-      next('/dashboard')
-      return
-    }
+  if (to.meta.roles && isAuthenticated && !to.meta.roles.includes(userRole)) {
+    next({ name: 'dashboard' })
+    return
   }
 
   next()

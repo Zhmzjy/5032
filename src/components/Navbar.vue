@@ -50,14 +50,16 @@
         </RouterLink>
 
         <div v-if="isAuthenticated" class="section-title">Dashboard</div>
-        <RouterLink v-if="isAuthenticated && currentUser.role === 'coach'" to="/coach" class="drawer-link" @click="closeDrawer">
-          Coach Dashboard
-        </RouterLink>
-        <RouterLink v-if="isAuthenticated && currentUser.role === 'user'" to="/dashboard" class="drawer-link" @click="closeDrawer">
-          My Dashboard
+        <RouterLink v-if="isAuthenticated" to="/dashboard" class="drawer-link" @click="closeDrawer">
+          {{ currentUser.role === 'coach' ? 'Coach Dashboard' : 'My Dashboard' }}
         </RouterLink>
 
-        <div class="section-title">Coach</div>
+        <div v-if="isAuthenticated && currentUser.role === 'coach'" class="section-title">Coach Tools</div>
+        <RouterLink v-if="isAuthenticated && currentUser.role === 'coach'" to="/coach" class="drawer-link" @click="closeDrawer">
+          Advanced Coach Panel
+        </RouterLink>
+
+        <div v-if="!isAuthenticated || currentUser.role === 'user'" class="section-title">Coach</div>
         <RouterLink v-if="!isAuthenticated || currentUser.role === 'user'" to="/coaches" class="drawer-link" @click="closeDrawer">
           Become a Coach
         </RouterLink>

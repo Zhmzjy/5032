@@ -208,7 +208,12 @@ const handleRegister = async () => {
       password: password.value,
       role: role.value
     })
-    router.push('/login')
+
+    if (role.value === 'coach') {
+      router.push('/coaches')
+    } else {
+      router.push('/login')
+    }
   } catch (error) {
     formError.value = error.message
   } finally {
