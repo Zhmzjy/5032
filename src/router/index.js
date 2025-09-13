@@ -29,12 +29,6 @@ const router = createRouter({
       meta: { requiresAuth: true, roles: ['user', 'coach'] }
     },
     {
-      path: '/coach',
-      name: 'coach',
-      component: () => import('../views/CoachDashboardView.vue'),
-      meta: { requiresAuth: true, roles: ['coach'] }
-    },
-    {
       path: '/coaches',
       name: 'coach-application',
       component: () => import('../views/CoachPage.vue'),
@@ -45,6 +39,12 @@ const router = createRouter({
       name: 'reviews',
       component: () => import('../views/ReviewsView.vue'),
       meta: { requiresAuth: true, roles: ['user', 'coach'] }
+    },
+    {
+      path: '/xss-test',
+      name: 'xss-test',
+      component: () => import('../views/XSSTestView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

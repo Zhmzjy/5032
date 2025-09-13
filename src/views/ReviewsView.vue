@@ -3,8 +3,10 @@
     <div class="row">
       <div class="col-12">
         <div class="header-section mb-4">
-          <h1 class="h3">Reviews & Ratings</h1>
-          <p class="text-muted">Share your experience with our fitness community</p>
+          <h1 class="h3">{{ currentUser.role === 'coach' ? 'Class Reviews' : 'Write Reviews' }}</h1>
+          <p class="text-muted">
+            {{ currentUser.role === 'coach' ? 'View reviews for your classes' : 'Rate and review classes you have joined' }}
+          </p>
         </div>
       </div>
     </div>
@@ -17,14 +19,37 @@
       </div>
     </div>
 
-    <div class="row mb-4">
+    <div v-if="currentUser.role === 'user'" class="row mb-4">
       <div class="col-12">
         <div class="card">
           <div class="card-header">
             <h5 class="mb-0">Write a Review</h5>
           </div>
           <div class="card-body">
-            <form @submit.prevent="submitReview" novalidate>
+            <div v-if="userEnrolledClasses.length === 0" class="text-center text-muted py-4">
+              You haven't joined any classes yet. Join a class from your dashboard to write reviews.
+            </div>
+            <form v-else @submit.prevent="submitReview" novalidate>
+              <div class="mb-3">
+                <label for="classSelect" class="form-label">Select Class</label>
+                <select
+                  id="classSelect"
+                  class="form-select"
+                  v-model="selectedClassId"
+                  :class="{ 'is-invalid': touched && !selectedClassId }"
+                  @change="touched = true"
+                  required
+                >
+                  <option value="">Choose a class to review</option>
+                  <option v-for="classItem in userEnrolledClasses" :key="classItem.id" :value="classItem.id">
+                    {{ classItem.name }} - {{ classItem.category }}
+                  </option>
+                </select>
+                <div v-if="touched && !selectedClassId" class="invalid-feedback">
+                  Please select a class to review
+                </div>
+              </div>
+
               <div class="mb-3">
                 <label class="form-label">Rating</label>
                 <div class="rating-input">
@@ -54,7 +79,7 @@
                   :class="{ 'is-invalid': touched && !commentValid }"
                   rows="4"
                   v-model="comment"
-                  placeholder="Share your experience..."
+                  placeholder="Share your experience with this class..."
                   maxlength="280"
                   @blur="touched = true"
                 ></textarea>
@@ -81,10 +106,10 @@
     </div>
 
     <div class="row">
-      <div class="col-md-4">
+      <div v-if="currentUser.role === 'coach'" class="col-md-4">
         <div class="card">
           <div class="card-header">
-            <h5 class="mb-0">Rating Summary</h5>
+            <h5 class="mb-0">Overall Rating</h5>
           </div>
           <div class="card-body">
             <div class="rating-summary">
@@ -93,7 +118,7 @@
                 <div class="rating-stars">
                   <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(averageRating) }">★</span>
                 </div>
-                <div class="total-reviews">{{ reviews.length }} review{{ reviews.length !== 1 ? 's' : '' }}</div>
+                <div class="total-reviews">{{ coachReviews.length }} review{{ coachReviews.length !== 1 ? 's' : '' }}</div>
               </div>
 
               <div class="rating-breakdown">
@@ -110,21 +135,26 @@
         </div>
       </div>
 
-      <div class="col-md-8">
+      <div :class="currentUser.role === 'coach' ? 'col-md-8' : 'col-12'">
         <div class="card">
           <div class="card-header">
-            <h5 class="mb-0">Recent Reviews</h5>
+            <h5 class="mb-0">{{ currentUser.role === 'coach' ? 'Reviews for Your Classes' : 'Your Reviews' }}</h5>
           </div>
           <div class="card-body">
-            <div v-if="reviews.length === 0" class="text-center text-muted py-4">
-              No reviews yet. Be the first to share your experience!
+            <div v-if="displayReviews.length === 0" class="text-center text-muted py-4">
+              {{ currentUser.role === 'coach' ? 'No reviews for your classes yet.' : 'You haven\'t written any reviews yet.' }}
             </div>
             <div v-else>
-              <div v-for="review in reviews.slice().reverse()" :key="review.id" class="review-item border-bottom pb-3 mb-3">
+              <div v-for="review in displayReviews" :key="review.id" class="review-item border-bottom pb-3 mb-3">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                   <div>
-                    <h6 class="mb-1">{{ review.userEmail }}</h6>
+                    <h6 class="mb-1">
+                      {{ currentUser.role === 'coach' ? review.userName : review.className }}
+                    </h6>
                     <small class="text-muted">{{ formatDate(review.createdAt) }}</small>
+                    <div v-if="currentUser.role === 'coach'" class="class-info">
+                      <span class="badge bg-light text-dark">{{ review.className }}</span>
+                    </div>
                   </div>
                   <div class="rating-stars">
                     <span v-for="i in 5" :key="i" class="star" :class="{ filled: i <= review.rating }">★</span>
@@ -143,32 +173,57 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuth } from '../auth/authService'
+import { sanitizeText, validateCommentLength, containsScript } from '../utils/security'
 
 const { currentUser } = useAuth()
 
 const rating = ref(0)
 const comment = ref('')
+const selectedClassId = ref('')
 const reviews = ref([])
 const submitting = ref(false)
 const touched = ref(false)
 const successMessage = ref('')
+const userEnrolledClasses = ref([])
 
-const commentValid = computed(() => comment.value.trim().length > 0)
-const formValid = computed(() => rating.value > 0 && commentValid.value)
+const commentValid = computed(() => {
+  try {
+    validateCommentLength(comment.value)
+    return true
+  } catch {
+    return false
+  }
+})
+
+const formValid = computed(() => rating.value > 0 && commentValid.value && selectedClassId.value)
+
+const coachReviews = computed(() => {
+  if (currentUser.value?.role !== 'coach') return []
+  return reviews.value.filter(review => review.coachId === currentUser.value?.id)
+})
+
+const userReviews = computed(() => {
+  if (currentUser.value?.role !== 'user') return []
+  return reviews.value.filter(review => review.userId === currentUser.value?.id)
+})
+
+const displayReviews = computed(() => {
+  return currentUser.value?.role === 'coach' ? coachReviews.value : userReviews.value
+})
 
 const averageRating = computed(() => {
-  if (reviews.value.length === 0) return 0
-  const total = reviews.value.reduce((sum, review) => sum + review.rating, 0)
-  return total / reviews.value.length
+  if (coachReviews.value.length === 0) return 0
+  const total = coachReviews.value.reduce((sum, review) => sum + review.rating, 0)
+  return total / coachReviews.value.length
 })
 
 const getStarCount = (starLevel) => {
-  return reviews.value.filter(review => review.rating === starLevel).length
+  return coachReviews.value.filter(review => review.rating === starLevel).length
 }
 
 const getStarPercentage = (starLevel) => {
-  if (reviews.value.length === 0) return 0
-  return (getStarCount(starLevel) / reviews.value.length) * 100
+  if (coachReviews.value.length === 0) return 0
+  return (getStarCount(starLevel) / coachReviews.value.length) * 100
 }
 
 const setRating = (value) => {
@@ -176,15 +231,25 @@ const setRating = (value) => {
   touched.value = true
 }
 
-const loadReviews = () => {
-  const savedReviews = localStorage.getItem('reviews')
+const loadData = () => {
+  const savedReviews = localStorage.getItem('classReviews')
   if (savedReviews) {
     reviews.value = JSON.parse(savedReviews)
+  }
+
+  if (currentUser.value?.role === 'user') {
+    const enrollments = JSON.parse(localStorage.getItem('userEnrollments') || '[]')
+    const userEnrollments = enrollments.filter(enrollment => enrollment.userId === currentUser.value?.id)
+
+    const allClasses = JSON.parse(localStorage.getItem('classes') || '[]')
+    userEnrolledClasses.value = allClasses.filter(cls =>
+      userEnrollments.some(enrollment => enrollment.classId === cls.id)
+    )
   }
 }
 
 const saveReviews = () => {
-  localStorage.setItem('reviews', JSON.stringify(reviews.value))
+  localStorage.setItem('classReviews', JSON.stringify(reviews.value))
 }
 
 const submitReview = async () => {
@@ -194,16 +259,31 @@ const submitReview = async () => {
     return
   }
 
-  submitting.value = true
-
   try {
+    const sanitizedComment = sanitizeText(comment.value, 280)
+    const validatedComment = validateCommentLength(sanitizedComment)
+
+    if (containsScript(validatedComment)) {
+      throw new Error('Invalid content detected in comment')
+    }
+
+    const selectedClass = userEnrolledClasses.value.find(cls => cls.id === selectedClassId.value)
+    if (!selectedClass) {
+      throw new Error('Invalid class selection')
+    }
+
+    submitting.value = true
     await new Promise(resolve => setTimeout(resolve, 600))
 
     const newReview = {
       id: Date.now().toString(),
-      userEmail: currentUser.value.email,
+      userId: currentUser.value.id,
+      userName: currentUser.value.name,
+      classId: selectedClassId.value,
+      className: selectedClass.name,
+      coachId: selectedClass.coachId,
       rating: rating.value,
-      comment: comment.value.trim().substring(0, 280),
+      comment: validatedComment,
       createdAt: new Date().toISOString()
     }
 
@@ -212,6 +292,7 @@ const submitReview = async () => {
 
     rating.value = 0
     comment.value = ''
+    selectedClassId.value = ''
     touched.value = false
     successMessage.value = 'Thank you for your review! It has been submitted successfully.'
 
@@ -220,7 +301,7 @@ const submitReview = async () => {
     }, 5000)
 
   } catch (error) {
-    console.error('Error submitting review:', error)
+    alert(error.message)
   } finally {
     submitting.value = false
   }
@@ -236,7 +317,7 @@ const formatDate = (dateString) => {
 }
 
 onMounted(() => {
-  loadReviews()
+  loadData()
 })
 </script>
 
@@ -331,5 +412,9 @@ onMounted(() => {
 .review-comment {
   line-height: 1.5;
   color: #495057;
+}
+
+.class-info {
+  margin-top: 0.25rem;
 }
 </style>

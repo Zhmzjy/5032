@@ -112,7 +112,7 @@ const handleLogin = async () => {
     if (nextPath && typeof nextPath === 'string') {
       router.push(decodeURIComponent(nextPath))
     } else {
-      router.push(user.role === 'coach' ? '/coach' : '/dashboard')
+      router.push('/dashboard')
     }
   } catch (error) {
     formError.value = error.message

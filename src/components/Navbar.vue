@@ -54,11 +54,6 @@
           {{ currentUser.role === 'coach' ? 'Coach Dashboard' : 'My Dashboard' }}
         </RouterLink>
 
-        <div v-if="isAuthenticated && currentUser.role === 'coach'" class="section-title">Coach Tools</div>
-        <RouterLink v-if="isAuthenticated && currentUser.role === 'coach'" to="/coach" class="drawer-link" @click="closeDrawer">
-          Advanced Coach Panel
-        </RouterLink>
-
         <div v-if="!isAuthenticated || currentUser.role === 'user'" class="section-title">Coach</div>
         <RouterLink v-if="!isAuthenticated || currentUser.role === 'user'" to="/coaches" class="drawer-link" @click="closeDrawer">
           Become a Coach
@@ -67,6 +62,11 @@
         <div v-if="isAuthenticated" class="section-title">Reviews</div>
         <RouterLink v-if="isAuthenticated" to="/reviews" class="drawer-link" @click="closeDrawer">
           Reviews & Ratings
+        </RouterLink>
+
+        <div v-if="isAuthenticated" class="section-title">Security Test</div>
+        <RouterLink v-if="isAuthenticated" to="/xss-test" class="drawer-link" @click="closeDrawer">
+          XSS Protection Demo
         </RouterLink>
 
         <div v-if="isAuthenticated" class="logout-section">

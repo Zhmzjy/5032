@@ -152,6 +152,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { register } from '../auth/authService'
+import { sanitizeText, validateNameLength } from '../utils/security'
 
 const router = useRouter()
 
@@ -167,7 +168,12 @@ const showConfirm = ref(false)
 const formError = ref('')
 
 const nameValid = computed(() => {
-  return fullName.value.trim().length > 0
+  try {
+    validateNameLength(fullName.value)
+    return true
+  } catch {
+    return false
+  }
 })
 
 const emailValid = computed(() => {
@@ -198,12 +204,14 @@ const handleRegister = async () => {
     return
   }
 
-  submitting.value = true
-
   try {
+    const sanitizedName = sanitizeText(fullName.value, 100)
+    const validatedName = validateNameLength(sanitizedName)
+
+    submitting.value = true
     await new Promise(resolve => setTimeout(resolve, 600))
     await register({
-      name: fullName.value,
+      name: validatedName,
       email: email.value,
       password: password.value,
       role: role.value

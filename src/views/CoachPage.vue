@@ -178,18 +178,19 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../auth/authService'
+import { sanitizeText, validateNameLength } from '../utils/security'
 
 const router = useRouter()
-const { currentUser, isAuthenticated, updateUserRole } = useAuth()
+const { currentUser, updateUserRole } = useAuth()
 
-const name = ref(currentUser.value?.name || '')
-const email = ref(currentUser.value?.email || '')
+const name = ref('')
+const email = ref('')
 const phone = ref('')
 const specialization = ref('')
-const experience = ref('')
+const experience = ref(1)
 const certifications = ref('')
 const bio = ref('')
 const terms = ref(false)
@@ -197,30 +198,56 @@ const touched = ref(false)
 const loading = ref(false)
 const formError = ref(null)
 
-const nameValid = computed(() => name.value.trim().length >= 2)
-const emailValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value))
-const phoneValid = computed(() => {
-  const phoneDigits = phone.value.replace(/\D/g, '')
-  return phoneDigits.length === 10 && (phoneDigits.startsWith('04') || phoneDigits.startsWith('02') || phoneDigits.startsWith('03') || phoneDigits.startsWith('07') || phoneDigits.startsWith('08'))
+const nameValid = computed(() => {
+  try {
+    validateNameLength(name.value)
+    return true
+  } catch {
+    return false
+  }
 })
-const specializationValid = computed(() => specialization.value !== '')
-const experienceValid = computed(() => experience.value >= 1 && experience.value <= 50)
-const bioValid = computed(() => bio.value.trim().length >= 20)
-const termsValid = computed(() => terms.value === true)
+
+const emailValid = computed(() => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email.value)
+})
+
+const phoneValid = computed(() => {
+  const cleaned = phone.value.replace(/\D/g, '')
+  return cleaned.length >= 8 && cleaned.length <= 15
+})
+
+const specializationValid = computed(() => {
+  return specialization.value && specialization.value.trim().length > 0
+})
+
+const experienceValid = computed(() => {
+  const exp = parseInt(experience.value)
+  return exp >= 1 && exp <= 50
+})
+
+const bioValid = computed(() => {
+  return bio.value.trim().length >= 20
+})
+
+const termsValid = computed(() => {
+  return terms.value === true
+})
 
 const formValid = computed(() => {
-  return nameValid.value && emailValid.value && phoneValid.value &&
-         specializationValid.value && experienceValid.value && bioValid.value && termsValid.value
+  return nameValid.value &&
+         emailValid.value &&
+         phoneValid.value &&
+         specializationValid.value &&
+         experienceValid.value &&
+         bioValid.value &&
+         termsValid.value
 })
 
 const handleSubmit = async () => {
-  if (!isAuthenticated.value) {
-    formError.value = 'Please login to submit a coach application.'
-    return
-  }
+  touched.value = true
 
   if (!formValid.value) {
-    touched.value = true
     return
   }
 
@@ -228,18 +255,24 @@ const handleSubmit = async () => {
   formError.value = null
 
   try {
+    const sanitizedName = sanitizeText(name.value, 100)
+    const validatedName = validateNameLength(sanitizedName)
+    const sanitizedBio = sanitizeText(bio.value, 500)
+    const sanitizedCertifications = sanitizeText(certifications.value, 300)
+
     await new Promise(resolve => setTimeout(resolve, 800))
 
     const applicationData = {
+      id: Date.now().toString(),
       userId: currentUser.value.id,
-      name: name.value,
+      name: validatedName,
       email: email.value,
       phone: phone.value,
       specialization: specialization.value,
       experience: experience.value,
-      certifications: certifications.value,
-      bio: bio.value,
-      appliedAt: new Date().toISOString(),
+      certifications: sanitizedCertifications,
+      bio: sanitizedBio,
+      submittedAt: new Date().toISOString(),
       status: 'approved'
     }
 
@@ -257,6 +290,13 @@ const handleSubmit = async () => {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  if (currentUser.value) {
+    name.value = currentUser.value.name || ''
+    email.value = currentUser.value.email || ''
+  }
+})
 </script>
 
 <style scoped>
