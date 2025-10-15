@@ -45,6 +45,11 @@ const router = createRouter({
       name: 'xss-test',
       component: () => import('../views/XSSTestView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/firebase-signin',
+      name: 'firebase-signin',
+      component: () => import('../views/FirebaseSigninView.vue')
     }
   ]
 })
