@@ -21,7 +21,8 @@
                   id="name"
                   v-model="name"
                   :disabled="loading"
-                  :class="{'is-invalid': touched && !nameValid}"
+                  :class="{'is-invalid': touchedFields.name && !nameValid}"
+                  @blur="touchedFields.name = true"
                   required
                 />
                 <div class="invalid-feedback">
@@ -38,7 +39,8 @@
                   v-model="email"
                   autocomplete="email"
                   :disabled="loading"
-                  :class="{'is-invalid': touched && !emailValid}"
+                  :class="{'is-invalid': touchedFields.email && !emailValid}"
+                  @blur="touchedFields.email = true"
                   required
                 />
                 <div class="invalid-feedback">
@@ -56,8 +58,8 @@
                   inputmode="numeric"
                   pattern="[0-9]*"
                   :disabled="loading"
-                  :class="{'is-invalid': touched && !phoneValid}"
-                  @blur="touched = true"
+                  :class="{'is-invalid': touchedFields.phone && !phoneValid}"
+                  @blur="touchedFields.phone = true"
                   required
                 />
                 <div class="invalid-feedback">
@@ -72,8 +74,8 @@
                   id="specialization"
                   v-model="specialization"
                   :disabled="loading"
-                  :class="{'is-invalid': touched && !specializationValid}"
-                  @blur="touched = true"
+                  :class="{'is-invalid': touchedFields.specialization && !specializationValid}"
+                  @blur="touchedFields.specialization = true"
                   required
                 >
                   <option value="">Select your specialization</option>
@@ -98,8 +100,8 @@
                   min="1"
                   max="50"
                   :disabled="loading"
-                  :class="{'is-invalid': touched && !experienceValid}"
-                  @blur="touched = true"
+                  :class="{'is-invalid': touchedFields.experience && !experienceValid}"
+                  @blur="touchedFields.experience = true"
                   required
                 />
                 <div class="invalid-feedback">
@@ -115,6 +117,7 @@
                   v-model="certifications"
                   rows="2"
                   :disabled="loading"
+                  @blur="touchedFields.certifications = true"
                   placeholder="List your relevant certifications"
                 ></textarea>
               </div>
@@ -127,8 +130,8 @@
                   v-model="bio"
                   rows="3"
                   :disabled="loading"
-                  :class="{'is-invalid': touched && !bioValid}"
-                  @blur="touched = true"
+                  :class="{'is-invalid': touchedFields.bio && !bioValid}"
+                  @blur="touchedFields.bio = true"
                   placeholder="Tell us about yourself and your coaching philosophy"
                   required
                 ></textarea>
@@ -145,7 +148,8 @@
                     id="terms"
                     v-model="terms"
                     :disabled="loading"
-                    :class="{'is-invalid': touched && !termsValid}"
+                    :class="{'is-invalid': touchedFields.terms && !termsValid}"
+                    @change="touchedFields.terms = true"
                     required
                   />
                   <label class="form-check-label" for="terms">
@@ -181,6 +185,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../auth/authService'
+import { submitCoachApplication } from '../services/coachService'
 import { sanitizeText, validateNameLength } from '../utils/security'
 
 const router = useRouter()
@@ -194,7 +199,16 @@ const experience = ref(1)
 const certifications = ref('')
 const bio = ref('')
 const terms = ref(false)
-const touched = ref(false)
+const touchedFields = ref({
+  name: false,
+  email: false,
+  phone: false,
+  specialization: false,
+  experience: false,
+  certifications: false,
+  bio: false,
+  terms: false
+})
 const loading = ref(false)
 const formError = ref(null)
 
@@ -245,7 +259,16 @@ const formValid = computed(() => {
 })
 
 const handleSubmit = async () => {
-  touched.value = true
+  touchedFields.value = {
+    name: true,
+    email: true,
+    phone: true,
+    specialization: true,
+    experience: true,
+    certifications: true,
+    bio: true,
+    terms: true
+  }
 
   if (!formValid.value) {
     return
@@ -263,7 +286,6 @@ const handleSubmit = async () => {
     await new Promise(resolve => setTimeout(resolve, 800))
 
     const applicationData = {
-      id: Date.now().toString(),
       userId: currentUser.value.id,
       name: validatedName,
       email: email.value,
@@ -272,18 +294,14 @@ const handleSubmit = async () => {
       experience: experience.value,
       certifications: sanitizedCertifications,
       bio: sanitizedBio,
-      submittedAt: new Date().toISOString(),
       status: 'approved'
     }
 
-    const applications = JSON.parse(localStorage.getItem('coachApplications') || '[]')
-    applications.push(applicationData)
-    localStorage.setItem('coachApplications', JSON.stringify(applications))
-
-    updateUserRole(currentUser.value.id, 'coach')
+    await submitCoachApplication(applicationData)
+    await updateUserRole(currentUser.value.id, 'coach')
 
     alert('Congratulations! Your coach application has been approved. You are now a certified coach!')
-    router.push('/coach')
+    router.push('/dashboard')
   } catch (error) {
     formError.value = 'An error occurred while processing your application. Please try again.'
   } finally {

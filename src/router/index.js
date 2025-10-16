@@ -41,15 +41,16 @@ const router = createRouter({
       meta: { requiresAuth: true, roles: ['user', 'coach'] }
     },
     {
+      path: '/email',
+      name: 'email',
+      component: () => import('../views/EmailView.vue'),
+      meta: { requiresAuth: true, roles: ['user', 'coach'] }
+    },
+    {
       path: '/xss-test',
       name: 'xss-test',
       component: () => import('../views/XSSTestView.vue'),
       meta: { requiresAuth: true }
-    },
-    {
-      path: '/firebase-signin',
-      name: 'firebase-signin',
-      component: () => import('../views/FirebaseSigninView.vue')
     }
   ]
 })

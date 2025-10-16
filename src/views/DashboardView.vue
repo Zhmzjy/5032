@@ -249,6 +249,15 @@
 
     <div class="row mt-4">
       <div class="col-12">
+        <div v-if="resendSuccess" class="alert alert-success alert-dismissible fade show" role="alert">
+          {{ resendSuccess }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" @click="resendSuccess = ''"></button>
+        </div>
+        <div v-if="resendError" class="alert alert-danger alert-dismissible fade show" role="alert">
+          {{ resendError }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" @click="resendError = ''"></button>
+        </div>
+
         <div class="card">
           <div class="card-header">
             <h5 class="mb-0">Quick Actions</h5>
@@ -264,6 +273,16 @@
                 <RouterLink to="/coaches" class="btn btn-outline-primary w-100">
                   Become a Coach
                 </RouterLink>
+              </div>
+              <div v-if="!currentUser.emailVerified" class="col-md-4">
+                <button
+                  class="btn btn-warning w-100"
+                  @click="handleResendVerification"
+                  :disabled="resendLoading"
+                >
+                  <span v-if="resendLoading" class="spinner-border spinner-border-sm me-2"></span>
+                  {{ resendLoading ? 'Sending...' : 'Resend Verification Email' }}
+                </button>
               </div>
               <div class="col-md-4">
                 <button class="btn btn-outline-secondary w-100" @click="refreshData">
@@ -281,15 +300,24 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useAuth } from '../auth/authService'
+import { resendVerificationEmail, reloadUserStatus } from '../auth/authService'
+import { createClass as createClassFirestore, getClassesByCoach, getAllClasses, deleteClass as deleteClassFirestore, enrollInClass, getUserEnrollments, isUserEnrolled as checkEnrollment } from '../services/classService'
+import { getCoachApplicationByUserId } from '../services/coachService'
+import { getReviewsByCoach, getReviewsByUser } from '../services/reviewService'
 
 const { currentUser } = useAuth()
 
 const showCreateForm = ref(false)
 const submitting = ref(false)
 const activeClasses = ref([])
+const allClassesList = ref([])
 const userClasses = ref([])
 const userReviews = ref([])
 const userEnrollments = ref([])
+const coachApplication = ref(null)
+const resendLoading = ref(false)
+const resendSuccess = ref('')
+const resendError = ref('')
 
 const newClass = ref({
   name: '',
@@ -300,9 +328,7 @@ const newClass = ref({
 })
 
 const coachSpecialization = computed(() => {
-  const applications = JSON.parse(localStorage.getItem('coachApplications') || '[]')
-  const coachApp = applications.find(app => app.userId === currentUser.value?.id)
-  return coachApp?.specialization || 'General'
+  return coachApplication.value?.specialization || 'General'
 })
 
 const totalStudents = computed(() => {
@@ -310,11 +336,7 @@ const totalStudents = computed(() => {
 })
 
 const averageRating = computed(() => {
-  const reviews = JSON.parse(localStorage.getItem('classReviews') || '[]')
-  const coachReviews = reviews.filter(review => {
-    const reviewClass = activeClasses.value.find(cls => cls.id === review.classId)
-    return reviewClass && reviewClass.coachId === currentUser.value?.id
-  })
+  const coachReviews = userReviews.value
   if (coachReviews.length === 0) return 0
   const total = coachReviews.reduce((sum, review) => sum + review.rating, 0)
   return total / coachReviews.length
@@ -326,14 +348,14 @@ const thisMonthClasses = computed(() => {
   const currentYear = now.getFullYear()
 
   return activeClasses.value.filter(cls => {
-    const classDate = new Date(cls.dateTime)
+    if (!cls.dateTime) return false
+    const classDate = typeof cls.dateTime === 'string' ? new Date(cls.dateTime) : cls.dateTime.toDate()
     return classDate.getMonth() === currentMonth && classDate.getFullYear() === currentYear
   }).length
 })
 
 const availableClasses = computed(() => {
-  const allClasses = JSON.parse(localStorage.getItem('classes') || '[]')
-  return allClasses.filter(cls => cls.coachId !== currentUser.value?.id)
+  return allClassesList.value.filter(cls => cls.coachId !== currentUser.value?.id)
 })
 
 const displayClasses = computed(() => {
@@ -344,22 +366,26 @@ const isUserEnrolled = (classId) => {
   return userEnrollments.value.some(enrollment => enrollment.classId === classId)
 }
 
-const loadData = () => {
-  if (currentUser.value?.role === 'coach') {
-    const classes = JSON.parse(localStorage.getItem('classes') || '[]')
-    activeClasses.value = classes.filter(cls => cls.coachId === currentUser.value?.id)
-  } else {
-    const enrollments = JSON.parse(localStorage.getItem('userEnrollments') || '[]')
-    userEnrollments.value = enrollments.filter(enrollment => enrollment.userId === currentUser.value?.id)
+const loadData = async () => {
+  try {
+    if (currentUser.value?.role === 'coach') {
+      activeClasses.value = await getClassesByCoach(currentUser.value.id)
+      userReviews.value = await getReviewsByCoach(currentUser.value.id)
+      coachApplication.value = await getCoachApplicationByUserId(currentUser.value.id)
+    } else {
+      allClassesList.value = await getAllClasses()
+      const enrollments = await getUserEnrollments(currentUser.value.id)
+      userEnrollments.value = enrollments
 
-    const allClasses = JSON.parse(localStorage.getItem('classes') || '[]')
-    userClasses.value = allClasses.filter(cls =>
-      userEnrollments.value.some(enrollment => enrollment.classId === cls.id)
-    )
+      userClasses.value = allClassesList.value.filter(cls =>
+        enrollments.some(enrollment => enrollment.classId === cls.id)
+      )
+
+      userReviews.value = await getReviewsByUser(currentUser.value.id)
+    }
+  } catch (error) {
+    console.error('Error loading data:', error)
   }
-
-  const reviews = JSON.parse(localStorage.getItem('classReviews') || '[]')
-  userReviews.value = reviews.filter(review => review.userId === currentUser.value?.id)
 }
 
 const createClass = async () => {
@@ -369,7 +395,6 @@ const createClass = async () => {
     await new Promise(resolve => setTimeout(resolve, 600))
 
     const classData = {
-      id: Date.now().toString(),
       coachId: currentUser.value.id,
       coachName: currentUser.value.name,
       coachSpecialization: coachSpecialization.value,
@@ -377,16 +402,11 @@ const createClass = async () => {
       category: newClass.value.category,
       dateTime: newClass.value.dateTime,
       duration: newClass.value.duration,
-      description: newClass.value.description,
-      enrolledStudents: 0,
-      createdAt: new Date().toISOString()
+      description: newClass.value.description
     }
 
-    const classes = JSON.parse(localStorage.getItem('classes') || '[]')
-    classes.push(classData)
-    localStorage.setItem('classes', JSON.stringify(classes))
-
-    activeClasses.value.push(classData)
+    const createdClass = await createClassFirestore(classData)
+    activeClasses.value.unshift(createdClass)
 
     newClass.value = {
       name: '',
@@ -399,53 +419,54 @@ const createClass = async () => {
 
   } catch (error) {
     console.error('Error creating class:', error)
+    alert('Failed to create class. Please try again.')
   } finally {
     submitting.value = false
   }
 }
 
-const joinClass = (classId) => {
-  const enrollment = {
-    id: Date.now().toString(),
-    userId: currentUser.value.id,
-    classId: classId,
-    enrolledAt: new Date().toISOString()
+const joinClass = async (classId) => {
+  try {
+    const alreadyEnrolled = await checkEnrollment(currentUser.value.id, classId)
+    if (alreadyEnrolled) {
+      alert('You are already enrolled in this class')
+      return
+    }
+
+    await enrollInClass(currentUser.value.id, classId, currentUser.value.name)
+    await loadData()
+    alert('Successfully enrolled in class!')
+  } catch (error) {
+    console.error('Error joining class:', error)
+    alert('Failed to join class. Please try again.')
   }
-
-  const enrollments = JSON.parse(localStorage.getItem('userEnrollments') || '[]')
-  enrollments.push(enrollment)
-  localStorage.setItem('userEnrollments', JSON.stringify(enrollments))
-
-  const classes = JSON.parse(localStorage.getItem('classes') || '[]')
-  const classIndex = classes.findIndex(cls => cls.id === classId)
-  if (classIndex !== -1) {
-    classes[classIndex].enrolledStudents = (classes[classIndex].enrolledStudents || 0) + 1
-    localStorage.setItem('classes', JSON.stringify(classes))
-  }
-
-  loadData()
 }
 
 const editClass = (classItem) => {
   console.log('Edit class:', classItem)
 }
 
-const deleteClass = (classId) => {
+const deleteClass = async (classId) => {
   if (confirm('Are you sure you want to delete this class?')) {
-    activeClasses.value = activeClasses.value.filter(cls => cls.id !== classId)
-
-    const classes = JSON.parse(localStorage.getItem('classes') || '[]')
-    const updatedClasses = classes.filter(cls => cls.id !== classId)
-    localStorage.setItem('classes', JSON.stringify(updatedClasses))
+    try {
+      await deleteClassFirestore(classId)
+      activeClasses.value = activeClasses.value.filter(cls => cls.id !== classId)
+      alert('Class deleted successfully')
+    } catch (error) {
+      console.error('Error deleting class:', error)
+      alert('Failed to delete class. Please try again.')
+    }
   }
 }
 
-const refreshData = () => {
-  loadData()
+const refreshData = async () => {
+  await reloadUserStatus()
+  await loadData()
 }
 
 const formatDate = (dateString) => {
-  const date = new Date(dateString)
+  if (!dateString) return 'N/A'
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString.toDate()
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',
@@ -453,6 +474,22 @@ const formatDate = (dateString) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+const handleResendVerification = async () => {
+  resendLoading.value = true
+  resendSuccess.value = ''
+  resendError.value = ''
+
+  try {
+    await resendVerificationEmail()
+    resendSuccess.value = 'Verification email sent! Please check your inbox and spam folder.'
+  } catch (error) {
+    console.error('Error resending verification email:', error)
+    resendError.value = error.message || 'Failed to resend verification email. Please try again.'
+  } finally {
+    resendLoading.value = false
+  }
 }
 
 onMounted(() => {

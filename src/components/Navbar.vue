@@ -38,7 +38,11 @@
       <div class="drawer-content">
         <div v-if="isAuthenticated" class="user-info">
           <div class="welcome-text">Welcome, {{ currentUser.name }}</div>
+          <div class="user-email">{{ currentUser.email }}</div>
           <div class="user-role">{{ currentUser.role === 'coach' ? 'Coach' : 'Member' }}</div>
+          <div v-if="currentUser.emailVerified === false" class="email-verify-notice">
+            <small>Email not verified</small>
+          </div>
         </div>
 
         <div v-if="!isAuthenticated" class="section-title">Account</div>
@@ -62,6 +66,11 @@
         <div v-if="isAuthenticated" class="section-title">Reviews</div>
         <RouterLink v-if="isAuthenticated" to="/reviews" class="drawer-link" @click="closeDrawer">
           Reviews & Ratings
+        </RouterLink>
+
+        <div v-if="isAuthenticated" class="section-title">Email</div>
+        <RouterLink v-if="isAuthenticated" to="/email" class="drawer-link" @click="closeDrawer">
+          Send Email
         </RouterLink>
 
         <div v-if="isAuthenticated" class="section-title">Security Test</div>
@@ -204,158 +213,115 @@ const handleLogout = () => {
 }
 
 .drawer-header {
-  display: flex;
-  justify-content: flex-end;
   padding: 1rem;
+  text-align: right;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: transparent;
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 24px;
+  color: #fff;
+  font-size: 2rem;
   cursor: pointer;
-  padding: 0.5rem;
+  padding: 0.25rem 0.5rem;
   line-height: 1;
-  transition: all 0.3s ease;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
+  transition: color 0.3s ease;
 }
 
 .close-btn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
+  color: #dc3545;
 }
 
 .drawer-content {
-  padding: 1.5rem 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  padding: 1.5rem;
 }
 
 .user-info {
-  padding: 0 1.5rem;
-  margin-bottom: 1rem;
-  text-align: center;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  color: #fff;
 }
 
 .welcome-text {
-  color: #fff;
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.user-email {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 0.5rem;
 }
 
 .user-role {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
-  font-weight: 400;
+  display: inline-block;
+  background: rgba(52, 152, 219, 0.3);
+  color: #3498db;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.email-verify-notice {
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 193, 7, 0.2);
+  border-radius: 4px;
+  color: #ffc107;
 }
 
 .section-title {
   color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  padding: 1rem 1.5rem 0.5rem;
-  margin-top: 1rem;
-}
-
-.section-title:first-child {
-  margin-top: 0;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.5px;
 }
 
 .drawer-link {
-  color: rgba(255, 255, 255, 0.9);
+  display: block;
+  color: #fff;
   text-decoration: none;
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 1.4;
-  padding: 1rem 1.5rem;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  border-left: 3px solid transparent;
-  min-height: 48px;
+  padding: 0.75rem;
+  margin-bottom: 0.25rem;
+  border-radius: 6px;
+  transition: background 0.3s ease;
 }
 
 .drawer-link:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
-  border-left-color: rgba(255, 255, 255, 0.4);
-}
-
-.drawer-link.router-link-active {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-  border-left-color: rgba(255, 255, 255, 0.6);
 }
 
 .logout-section {
-  margin-top: auto;
-  padding: 0 1.5rem 1.5rem;
-  text-align: center;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .logout-btn {
-  background: #e74c3c;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 500;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 4px;
+  width: 100%;
+  background: rgba(220, 53, 69, 0.2);
+  color: #dc3545;
+  border: 1px solid rgba(220, 53, 69, 0.5);
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .logout-btn:hover {
-  background: #c0392b;
-}
-
-@media (max-width: 576px) {
-  .nav-container {
-    padding: 0 0.75rem;
-  }
-
-  .brand-link {
-    font-size: 1.25rem;
-  }
-
-  .hamburger-btn {
-    padding: 0.5rem;
-    font-size: 1.25rem;
-    min-width: 40px;
-    min-height: 40px;
-  }
-
-  .drawer {
-    width: 280px;
-    max-width: 90vw;
-  }
-
-  .drawer-content {
-    padding: 1rem 0;
-  }
-
-  .section-title {
-    padding: 0.75rem 1rem 0.25rem;
-    font-size: 11px;
-  }
-
-  .drawer-link {
-    font-size: 15px;
-    padding: 0.75rem 1rem;
-    min-height: 44px;
-  }
+  background: rgba(220, 53, 69, 0.3);
+  border-color: #dc3545;
 }
 
 @keyframes fadeIn {

@@ -1,125 +1,264 @@
 import { ref, computed } from 'vue'
+import { auth, db } from '../firebase/config'
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  updateProfile
+} from 'firebase/auth'
+import { doc, setDoc, getDoc } from 'firebase/firestore'
 
 const currentUser = ref(null)
 const isAuthenticated = computed(() => !!currentUser.value)
 
-const sha256 = async (text) => {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(text)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-const getUsers = () => {
-  return JSON.parse(localStorage.getItem('users') || '[]')
-}
-
-const saveUsers = (users) => {
-  localStorage.setItem('users', JSON.stringify(users))
-}
-
-const getSession = () => {
-  const sessionData = localStorage.getItem('session')
-  return sessionData ? JSON.parse(sessionData) : null
-}
-
-const saveSession = (session) => {
-  localStorage.setItem('session', JSON.stringify(session))
-}
-
-const clearSession = () => {
-  localStorage.removeItem('session')
-}
-
-const register = async ({ email, password, name, role = 'user' }) => {
-  const users = getUsers()
-  const normalizedEmail = email.toLowerCase()
-
-  const existingUser = users.find(u => u.email === normalizedEmail)
-  if (existingUser) {
-    throw new Error('This email is already registered.')
+const getUserDataFromFirestore = async (userId) => {
+  try {
+    const userDocRef = doc(db, 'userData', userId)
+    const userDoc = await getDoc(userDocRef)
+    return userDoc.exists() ? userDoc.data() : null
+  } catch (error) {
+    console.error('Error fetching user data:', error)
+    return null
   }
+}
 
-  const passwordHash = await sha256(password)
-
-  const newUser = {
-    email: normalizedEmail,
-    passwordHash,
-    name,
-    role,
-    id: Date.now().toString(),
-    createdAt: new Date().toISOString()
+const saveUserDataToFirestore = async (userId, data) => {
+  try {
+    const userDocRef = doc(db, 'userData', userId)
+    await setDoc(userDocRef, {
+      ...data,
+      updatedAt: new Date().toISOString()
+    }, { merge: true })
+  } catch (error) {
+    console.error('Error saving user data:', error)
   }
+}
 
-  users.push(newUser)
-  saveUsers(users)
+const getErrorMessage = (errorCode) => {
+  const errors = {
+    'auth/email-already-in-use': 'This email is already registered.',
+    'auth/invalid-email': 'Invalid email address.',
+    'auth/operation-not-allowed': 'Operation not allowed.',
+    'auth/weak-password': 'Password is too weak.',
+    'auth/user-disabled': 'This account has been disabled.',
+    'auth/user-not-found': 'Invalid email or password.',
+    'auth/wrong-password': 'Invalid email or password.',
+    'auth/invalid-credential': 'Invalid email or password.',
+    'auth/too-many-requests': 'Too many attempts. Please try again later.',
+    'auth/network-request-failed': 'Network error. Please check your connection.',
+    'auth/popup-closed-by-user': 'Sign in cancelled.',
+    'auth/cancelled-popup-request': 'Sign in cancelled.'
+  }
+  return errors[errorCode] || 'An error occurred. Please try again.'
+}
 
-  return { email: newUser.email, name: newUser.name, role: newUser.role, id: newUser.id }
+const register = async ({ email, password, name, gender, role = 'user' }) => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+    const user = userCredential.user
+
+    await updateProfile(user, { displayName: name })
+
+    const registrationData = {
+      userId: user.uid,
+      name: name,
+      email: user.email,
+      gender: gender,
+      role: role,
+      accountCreatedAt: new Date().toISOString(),
+      accountCreatedDate: new Date().toLocaleDateString('en-AU'),
+      accountCreatedTime: new Date().toLocaleTimeString('en-AU'),
+      emailVerified: user.emailVerified,
+      authProvider: 'email',
+      lastLoginAt: new Date().toISOString(),
+      profileCompleted: true,
+      accountStatus: 'active'
+    }
+
+    await saveUserDataToFirestore(user.uid, registrationData)
+
+    await sendEmailVerification(user)
+
+    currentUser.value = {
+      email: user.email,
+      name: name,
+      gender: gender,
+      role: role,
+      id: user.uid,
+      emailVerified: user.emailVerified
+    }
+
+    return currentUser.value
+  } catch (error) {
+    throw new Error(getErrorMessage(error.code))
+  }
 }
 
 const login = async ({ email, password }) => {
-  const users = getUsers()
-  const normalizedEmail = email.toLowerCase()
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password)
+    const user = userCredential.user
 
-  const user = users.find(u => u.email === normalizedEmail)
-  if (!user) {
-    throw new Error('Invalid email or password.')
+    const firestoreData = await getUserDataFromFirestore(user.uid)
+
+    currentUser.value = {
+      email: user.email,
+      name: user.displayName || firestoreData?.name || email.split('@')[0],
+      role: firestoreData?.role || 'user',
+      id: user.uid,
+      emailVerified: user.emailVerified
+    }
+
+    return currentUser.value
+  } catch (error) {
+    throw new Error(getErrorMessage(error.code))
   }
-
-  const passwordHash = await sha256(password)
-  if (user.passwordHash !== passwordHash) {
-    throw new Error('Invalid email or password.')
-  }
-
-  const session = {
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    id: user.id
-  }
-
-  saveSession(session)
-  currentUser.value = session
-
-  return session
 }
 
-const logout = () => {
-  clearSession()
-  currentUser.value = null
+const loginWithGoogle = async () => {
+  try {
+    const provider = new GoogleAuthProvider()
+    const userCredential = await signInWithPopup(auth, provider)
+    const user = userCredential.user
+
+    let firestoreData = await getUserDataFromFirestore(user.uid)
+
+    if (!firestoreData) {
+      await saveUserDataToFirestore(user.uid, {
+        role: 'user',
+        name: user.displayName,
+        email: user.email,
+        createdAt: new Date().toISOString()
+      })
+      firestoreData = { role: 'user', name: user.displayName }
+    }
+
+    currentUser.value = {
+      email: user.email,
+      name: user.displayName || firestoreData?.name || user.email.split('@')[0],
+      role: firestoreData?.role || 'user',
+      id: user.uid,
+      emailVerified: user.emailVerified
+    }
+
+    return currentUser.value
+  } catch (error) {
+    throw new Error(getErrorMessage(error.code))
+  }
+}
+
+const resetPassword = async (email) => {
+  try {
+    await sendPasswordResetEmail(auth, email)
+  } catch (error) {
+    throw new Error(getErrorMessage(error.code))
+  }
+}
+
+const logout = async () => {
+  try {
+    await signOut(auth)
+    currentUser.value = null
+  } catch (error) {
+    throw new Error(getErrorMessage(error.code))
+  }
+}
+
+const getSession = () => {
+  return currentUser.value
 }
 
 const isAuthed = () => {
-  return !!getSession()
+  return !!currentUser.value
 }
 
 const hasRole = (role) => {
-  const session = getSession()
-  return session?.role === role
+  return currentUser.value?.role === role
 }
 
 const initAuth = () => {
-  const session = getSession()
-  if (session) {
-    currentUser.value = session
-  }
+  return new Promise((resolve) => {
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const firestoreData = await getUserDataFromFirestore(user.uid)
+
+        currentUser.value = {
+          email: user.email,
+          name: user.displayName || firestoreData?.name || user.email.split('@')[0],
+          role: firestoreData?.role || 'user',
+          id: user.uid,
+          emailVerified: user.emailVerified
+        }
+      } else {
+        currentUser.value = null
+      }
+      resolve(user)
+    })
+  })
 }
 
 const updateUserRole = async (userId, newRole) => {
-  const users = getUsers()
-  const userIndex = users.findIndex(u => u.id === userId)
+  await saveUserDataToFirestore(userId, { role: newRole })
 
-  if (userIndex !== -1) {
-    users[userIndex].role = newRole
-    saveUsers(users)
+  if (currentUser.value && currentUser.value.id === userId) {
+    currentUser.value.role = newRole
+  }
+}
 
-    const session = getSession()
-    if (session && session.id === userId) {
-      session.role = newRole
-      saveSession(session)
-      currentUser.value = session
+const resendVerificationEmail = async () => {
+  try {
+    const user = auth.currentUser
+    if (!user) {
+      throw new Error('No user logged in')
     }
+    if (user.emailVerified) {
+      throw new Error('Email already verified')
+    }
+
+    const actionCodeSettings = {
+      url: 'https://assignment3-3b99b.web.app/dashboard',
+      handleCodeInApp: false
+    }
+
+    await sendEmailVerification(user, actionCodeSettings)
+
+    console.log('Verification email sent to:', user.email)
+
+    return {
+      success: true,
+      email: user.email
+    }
+  } catch (error) {
+    console.error('Detailed error sending verification email:', {
+      code: error.code,
+      message: error.message,
+      email: auth.currentUser?.email
+    })
+    throw new Error(getErrorMessage(error.code) || error.message)
+  }
+}
+
+const reloadUserStatus = async () => {
+  try {
+    const user = auth.currentUser
+    if (!user) {
+      return false
+    }
+    await user.reload()
+
+    if (currentUser.value) {
+      currentUser.value.emailVerified = user.emailVerified
+    }
+
+    return user.emailVerified
+  } catch (error) {
+    console.error('Error reloading user status:', error)
+    return false
   }
 }
 
@@ -128,19 +267,28 @@ export const useAuth = () => {
     currentUser,
     isAuthenticated,
     login,
+    loginWithGoogle,
     register,
     logout,
+    resetPassword,
     initAuth,
-    updateUserRole
+    updateUserRole,
+    resendVerificationEmail,
+    reloadUserStatus
   }
 }
 
 export {
-  sha256,
   register,
   login,
+  loginWithGoogle,
+  resetPassword,
   logout,
   getSession,
   isAuthed,
-  hasRole
+  hasRole,
+  initAuth,
+  updateUserRole,
+  resendVerificationEmail,
+  reloadUserStatus
 }
