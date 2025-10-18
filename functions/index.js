@@ -11,13 +11,13 @@ const {setGlobalOptions} = require("firebase-functions/v2");
 const {onCall} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const sgMail = require("@sendgrid/mail");
-const {defineString} = require("firebase-functions/params");
+const {defineSecret} = require("firebase-functions/params");
 
 admin.initializeApp();
 
-const sendgridApiKey = defineString("SENDGRID_API_KEY");
-const sendgridFromEmail = defineString("SENDGRID_FROM_EMAIL");
-const sendgridFromName = defineString("SENDGRID_FROM_NAME");
+const sendgridApiKey = defineSecret("SENDGRID_API_KEY");
+const sendgridFromEmail = defineSecret("SENDGRID_FROM_EMAIL");
+const sendgridFromName = defineSecret("SENDGRID_FROM_NAME");
 
 const rateLimitMap = new Map();
 
@@ -57,7 +57,10 @@ setGlobalOptions({ maxInstances: 10 });
 //   response.send("Hello from Firebase!");
 // });
 
-exports.sendEmail = onCall({cors: true}, async (request) => {
+exports.sendEmail = onCall({
+  cors: true,
+  secrets: [sendgridApiKey, sendgridFromEmail, sendgridFromName]
+}, async (request) => {
   try {
     if (!request.auth) {
       throw new Error("Authentication required");
