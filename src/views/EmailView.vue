@@ -126,57 +126,226 @@
           </div>
         </div>
 
-        <div v-if="recentEmails.length > 0" class="card shadow-sm mt-4">
-          <div class="card-header">
-            <h5 class="mb-0">Recent Emails</h5>
+        <!-- Email Logs Table -->
+        <div class="card shadow-sm mt-4">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Email History</h5>
+            <span class="badge bg-secondary">{{ totalEmails }} total</span>
           </div>
-          <div class="card-body">
-            <div class="list-group">
-              <div
-                v-for="email in recentEmails"
-                :key="email.id"
-                class="list-group-item"
-              >
-                <div class="d-flex justify-content-between align-items-start">
-                  <div class="flex-grow-1">
-                    <h6 class="mb-1">{{ email.subject }}</h6>
-                    <p class="mb-1 text-muted small">
-                      To: {{ email.to }}
-                    </p>
-                    <small class="text-muted">
-                      {{ formatDate(email.timestamp) }}
-                    </small>
-                  </div>
-                  <span
-                    class="badge"
-                    :class="email.status === 'success' ? 'bg-success' : 'bg-danger'"
-                  >
-                    {{ email.status }}
+
+          <!-- Search and Filter Controls -->
+          <div class="card-body border-bottom">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="input-group">
+                  <span class="input-group-text">
+                    <i class="bi bi-search">🔍</i>
                   </span>
+                  <input
+                    type="text"
+                    class="form-control"
+                    placeholder="Search by recipient or subject..."
+                    v-model="searchQuery"
+                    @input="handleSearch"
+                  />
                 </div>
+              </div>
+              <div class="col-md-3">
+                <select class="form-select" v-model="statusFilter" @change="handleFilterChange">
+                  <option value="all">All Status</option>
+                  <option value="success">Success</option>
+                  <option value="failed">Failed</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <select class="form-select" v-model="pageSize" @change="handlePageSizeChange">
+                  <option :value="10">10 per page</option>
+                  <option :value="20">20 per page</option>
+                  <option :value="50">50 per page</option>
+                </select>
               </div>
             </div>
           </div>
-        </div>
 
-        <div v-if="loadingHistory" class="text-center mt-3">
-          <div class="spinner-border" role="status">
-            <span class="visually-hidden">Loading...</span>
+          <!-- Table -->
+          <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th @click="handleSort('timestamp')" class="sortable">
+                    Time
+                    <span v-if="sortBy === 'timestamp'">
+                      {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                    </span>
+                  </th>
+                  <th @click="handleSort('to')" class="sortable">
+                    Recipient
+                    <span v-if="sortBy === 'to'">
+                      {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                    </span>
+                  </th>
+                  <th @click="handleSort('subject')" class="sortable">
+                    Subject
+                    <span v-if="sortBy === 'subject'">
+                      {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                    </span>
+                  </th>
+                  <th @click="handleSort('status')" class="sortable text-center">
+                    Status
+                    <span v-if="sortBy === 'status'">
+                      {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                    </span>
+                  </th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="loadingHistory">
+                  <td colspan="5" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    Loading email logs...
+                  </td>
+                </tr>
+                <tr v-else-if="filteredEmails.length === 0">
+                  <td colspan="5" class="text-center py-4 text-muted">
+                    <div class="mb-2">📭</div>
+                    {{ searchQuery ? 'No emails found matching your search.' : 'No emails sent yet.' }}
+                  </td>
+                </tr>
+                <tr v-else v-for="email in paginatedEmails" :key="email.id">
+                  <td class="text-nowrap">
+                    <small>{{ formatDate(email.timestamp) }}</small>
+                  </td>
+                  <td>
+                    <div class="text-truncate" style="max-width: 200px;" :title="email.to">
+                      {{ email.to }}
+                    </div>
+                  </td>
+                  <td>
+                    <div class="text-truncate" style="max-width: 250px;" :title="email.subject">
+                      {{ email.subject }}
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <span
+                      class="badge"
+                      :class="email.status === 'success' ? 'bg-success' : 'bg-danger'"
+                    >
+                      {{ email.status === 'success' ? '✓ Success' : '✗ Failed' }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <button
+                      class="btn btn-sm btn-outline-primary"
+                      @click="viewEmailDetails(email)"
+                      title="View details"
+                    >
+                      <span>👁️</span>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="card-footer d-flex justify-content-between align-items-center">
+            <div class="text-muted small">
+              Showing {{ startIndex + 1 }} to {{ endIndex }} of {{ filteredEmails.length }} emails
+            </div>
+            <nav aria-label="Email pagination">
+              <ul class="pagination pagination-sm mb-0">
+                <li class="page-item" :class="{ disabled: currentPage === 1 }">
+                  <button class="page-link" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">
+                    Previous
+                  </button>
+                </li>
+                <li
+                  v-for="page in visiblePages"
+                  :key="page"
+                  class="page-item"
+                  :class="{ active: page === currentPage }"
+                >
+                  <button class="page-link" @click="goToPage(page)">
+                    {{ page }}
+                  </button>
+                </li>
+                <li class="page-item" :class="{ disabled: currentPage === totalPages }">
+                  <button class="page-link" @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages">
+                    Next
+                  </button>
+                </li>
+              </ul>
+            </nav>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Email Details Modal -->
+    <div v-if="selectedEmail" class="modal fade show d-block" tabindex="-1" @click.self="closeModal">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Email Details</h5>
+            <button type="button" class="btn-close" @click="closeModal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <strong>Recipient:</strong>
+              <div class="mt-1">{{ selectedEmail.to }}</div>
+            </div>
+            <div class="mb-3">
+              <strong>Subject:</strong>
+              <div class="mt-1">{{ selectedEmail.subject }}</div>
+            </div>
+            <div class="mb-3">
+              <strong>Sent:</strong>
+              <div class="mt-1">{{ formatDate(selectedEmail.timestamp) }}</div>
+            </div>
+            <div class="mb-3">
+              <strong>From:</strong>
+              <div class="mt-1">{{ selectedEmail.fromName }} ({{ selectedEmail.fromEmail }})</div>
+            </div>
+            <div class="mb-3">
+              <strong>Status:</strong>
+              <div class="mt-1">
+                <span
+                  class="badge"
+                  :class="selectedEmail.status === 'success' ? 'bg-success' : 'bg-danger'"
+                >
+                  {{ selectedEmail.status }}
+                </span>
+              </div>
+            </div>
+            <div v-if="selectedEmail.status === 'failed' && selectedEmail.error" class="mb-3">
+              <strong>Error:</strong>
+              <div class="mt-1 text-danger">{{ selectedEmail.error }}</div>
+            </div>
+            <div v-if="selectedEmail.messageLength" class="mb-3">
+              <strong>Message Length:</strong>
+              <div class="mt-1">{{ selectedEmail.messageLength }} characters</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeModal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div v-if="selectedEmail" class="modal-backdrop fade show"></div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAuth } from '../auth/authService'
 import { sendEmail, getEmailHistory } from '../services/emailService'
 import { sanitizeText } from '../utils/security'
 
 const { currentUser } = useAuth()
 
+// Form data
 const formData = ref({
   to: '',
   subject: '',
@@ -188,9 +357,19 @@ const sending = ref(false)
 const touched = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
-const recentEmails = ref([])
-const loadingHistory = ref(false)
 
+// Table data
+const allEmails = ref([])
+const loadingHistory = ref(false)
+const searchQuery = ref('')
+const statusFilter = ref('all')
+const sortBy = ref('timestamp')
+const sortOrder = ref('desc')
+const currentPage = ref(1)
+const pageSize = ref(10)
+const selectedEmail = ref(null)
+
+// Form validation
 const recipientValid = computed(() => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return emailRegex.test(formData.value.to)
@@ -208,14 +387,97 @@ const formValid = computed(() => {
   return recipientValid.value && subjectValid.value && messageValid.value
 })
 
+// Table computed properties
+const filteredEmails = computed(() => {
+  let emails = [...allEmails.value]
+
+  // Apply status filter
+  if (statusFilter.value !== 'all') {
+    emails = emails.filter(email => email.status === statusFilter.value)
+  }
+
+  // Apply search filter
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase().trim()
+    emails = emails.filter(email =>
+      email.to?.toLowerCase().includes(query) ||
+      email.subject?.toLowerCase().includes(query)
+    )
+  }
+
+  // Apply sorting
+  emails.sort((a, b) => {
+    let aVal, bVal
+
+    if (sortBy.value === 'timestamp') {
+      aVal = a.timestamp?.toDate?.() || new Date(a.timestamp || 0)
+      bVal = b.timestamp?.toDate?.() || new Date(b.timestamp || 0)
+    } else {
+      aVal = (a[sortBy.value] || '').toString().toLowerCase()
+      bVal = (b[sortBy.value] || '').toString().toLowerCase()
+    }
+
+    if (aVal < bVal) return sortOrder.value === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortOrder.value === 'asc' ? 1 : -1
+    return 0
+  })
+
+  return emails
+})
+
+const totalEmails = computed(() => filteredEmails.value.length)
+
+const totalPages = computed(() => Math.ceil(filteredEmails.value.length / pageSize.value) || 1)
+
+const startIndex = computed(() => (currentPage.value - 1) * pageSize.value)
+
+const endIndex = computed(() => Math.min(startIndex.value + pageSize.value, filteredEmails.value.length))
+
+const paginatedEmails = computed(() => {
+  return filteredEmails.value.slice(startIndex.value, endIndex.value)
+})
+
+const visiblePages = computed(() => {
+  const pages = []
+  const maxVisible = 5
+  let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2))
+  let end = Math.min(totalPages.value, start + maxVisible - 1)
+
+  if (end - start + 1 < maxVisible) {
+    start = Math.max(1, end - maxVisible + 1)
+  }
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+
+  return pages
+})
+
+// Methods
 const loadEmailHistory = async () => {
   try {
+    console.log('=== loadEmailHistory START ===')
     loadingHistory.value = true
-    recentEmails.value = await getEmailHistory(currentUser.value.id)
+
+    // Wait for currentUser to be initialized
+    if (!currentUser.value || !currentUser.value.id) {
+      console.log('Waiting for user authentication...')
+      console.log('currentUser:', currentUser.value)
+      loadingHistory.value = false
+      return
+    }
+
+    console.log('Loading email history for user:', currentUser.value.id)
+    allEmails.value = await getEmailHistory(currentUser.value.id)
+    console.log('Loaded emails:', allEmails.value.length)
+    console.log('Emails data:', allEmails.value)
   } catch (error) {
     console.error('Error loading email history:', error)
+    errorMessage.value = 'Failed to load email history'
   } finally {
     loadingHistory.value = false
+    console.log('=== loadEmailHistory END ===')
   }
 }
 
@@ -274,7 +536,64 @@ const formatDate = (timestamp) => {
   return date.toLocaleString()
 }
 
+const handleSort = (column) => {
+  if (sortBy.value === column) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = column
+    sortOrder.value = 'desc'
+  }
+}
+
+const handleSearch = () => {
+  currentPage.value = 1
+}
+
+const handleFilterChange = () => {
+  currentPage.value = 1
+}
+
+const handlePageSizeChange = () => {
+  currentPage.value = 1
+}
+
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+  }
+}
+
+const viewEmailDetails = (email) => {
+  selectedEmail.value = email
+}
+
+const closeModal = () => {
+  selectedEmail.value = null
+}
+
+// Watch for filter changes
+watch([statusFilter, searchQuery], () => {
+  currentPage.value = 1
+})
+
+// Watch for currentUser to be initialized, then load email history
+watch(
+  () => currentUser.value?.id,
+  (newId, oldId) => {
+    console.log('Watch triggered - currentUser.value:', currentUser.value)
+    console.log('Watch triggered - newId:', newId, 'oldId:', oldId)
+    if (newId) {
+      console.log('Calling loadEmailHistory because newId exists:', newId)
+      loadEmailHistory()
+    } else {
+      console.log('Not calling loadEmailHistory because newId is:', newId)
+    }
+  },
+  { immediate: true }
+)
+
 onMounted(() => {
+  console.log('EmailView onMounted - currentUser:', currentUser.value)
   loadEmailHistory()
 })
 </script>
@@ -303,13 +622,36 @@ onMounted(() => {
   border-color: #2980b9;
 }
 
-.list-group-item {
-  border-left: 4px solid transparent;
-  transition: all 0.3s ease;
+.table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
 }
 
-.list-group-item:hover {
-  border-left-color: #3498db;
-  background-color: #f8f9fa;
+.table th.sortable:hover {
+  background-color: #e9ecef;
+}
+
+.table tbody tr {
+  transition: background-color 0.2s;
+}
+
+.pagination {
+  margin: 0;
+}
+
+.modal.show {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.badge {
+  font-size: 0.75rem;
+  padding: 0.35em 0.65em;
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

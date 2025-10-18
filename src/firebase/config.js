@@ -13,6 +13,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+
+// Main database for user data, classes, reviews, etc.
 const db = getFirestore(app, 'fittogether-db');
 
-export { auth, app, db };
+// Default database for email logs (used by Cloud Functions)
+const defaultDb = getFirestore(app);
+
+export { auth, app, db, defaultDb };

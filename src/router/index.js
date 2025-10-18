@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
 import { getSession } from '../auth/authService'
 
 const router = createRouter({
@@ -8,7 +7,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: HomeView
+      component: () => import('../views/HomeView.vue')
     },
     {
       path: '/login',
@@ -26,25 +25,24 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('../views/DashboardView.vue'),
-      meta: { requiresAuth: true, roles: ['user', 'coach'] }
+      meta: { requiresAuth: true }
     },
     {
       path: '/coaches',
-      name: 'coach-application',
-      component: () => import('../views/CoachPage.vue'),
-      meta: { requiresAuth: true }
+      name: 'coaches',
+      component: () => import('../views/CoachPage.vue')
     },
     {
       path: '/reviews',
       name: 'reviews',
       component: () => import('../views/ReviewsView.vue'),
-      meta: { requiresAuth: true, roles: ['user', 'coach'] }
+      meta: { requiresAuth: true }
     },
     {
       path: '/email',
       name: 'email',
       component: () => import('../views/EmailView.vue'),
-      meta: { requiresAuth: true, roles: ['user', 'coach'] }
+      meta: { requiresAuth: true }
     },
     {
       path: '/xss-test',
