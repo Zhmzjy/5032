@@ -73,6 +73,11 @@
           Send Email
         </RouterLink>
 
+        <div class="section-title">Locations</div>
+        <RouterLink to="/map" class="drawer-link" @click="closeDrawer">
+          Find Gyms & Parks
+        </RouterLink>
+
         <div v-if="isAuthenticated" class="section-title">Security Test</div>
         <RouterLink v-if="isAuthenticated" to="/xss-test" class="drawer-link" @click="closeDrawer">
           XSS Protection Demo
@@ -106,10 +111,15 @@ const closeDrawer = () => {
   isDrawerOpen.value = false
 }
 
-const handleLogout = () => {
-  logout()
-  closeDrawer()
-  router.push('/')
+const handleLogout = async () => {
+  try {
+    await logout()
+    closeDrawer()
+    router.push('/')
+  } catch (error) {
+    console.error('Logout error:', error)
+    closeDrawer()
+  }
 }
 </script>
 

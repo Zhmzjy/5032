@@ -135,7 +135,7 @@
 
           <!-- Search and Filter Controls -->
           <div class="card-body border-bottom">
-            <div class="row g-3">
+            <div class="row g-3 mb-3">
               <div class="col-md-6">
                 <div class="input-group">
                   <span class="input-group-text">
@@ -164,6 +164,61 @@
                   <option :value="50">50 per page</option>
                 </select>
               </div>
+            </div>
+
+            <!-- Export Buttons -->
+            <div class="d-flex gap-2 align-items-center">
+              <button
+                class="btn btn-success btn-sm"
+                @click="exportToCSV"
+                :disabled="exporting || filteredEmails.length === 0"
+              >
+                <span v-if="exporting && exportType === 'csv'" class="spinner-border spinner-border-sm me-1"></span>
+                {{ exporting && exportType === 'csv' ? 'Exporting...' : 'Export CSV' }}
+              </button>
+
+              <button
+                class="btn btn-danger btn-sm"
+                @click="exportToPDF"
+                :disabled="exporting || filteredEmails.length === 0"
+              >
+                <span v-if="exporting && exportType === 'pdf'" class="spinner-border spinner-border-sm me-1"></span>
+                {{ exporting && exportType === 'pdf' ? 'Exporting...' : 'Export PDF' }}
+              </button>
+
+              <span v-if="filteredEmails.length > 0" class="text-muted small ms-2">
+                {{ filteredEmails.length }} records ready to export
+              </span>
+            </div>
+
+            <!-- Export Progress Bar -->
+            <div v-if="exporting" class="mt-3">
+              <div class="progress" style="height: 20px;">
+                <div
+                  class="progress-bar progress-bar-striped progress-bar-animated"
+                  :class="exportProgress === 100 ? 'bg-success' : 'bg-primary'"
+                  role="progressbar"
+                  :style="{ width: exportProgress + '%' }"
+                  :aria-valuenow="exportProgress"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                >
+                  {{ exportProgress }}%
+                </div>
+              </div>
+              <small class="text-muted">{{ exportMessage }}</small>
+            </div>
+
+            <!-- Export Success Message -->
+            <div v-if="exportSuccess" class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+              <strong>✓ Success!</strong> {{ exportSuccess }}
+              <button type="button" class="btn-close" @click="exportSuccess = ''" aria-label="Close"></button>
+            </div>
+
+            <!-- Export Error Message -->
+            <div v-if="exportError" class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+              <strong>✗ Error!</strong> {{ exportError }}
+              <button type="button" class="btn-close" @click="exportError = ''" aria-label="Close"></button>
             </div>
           </div>
 
@@ -236,11 +291,11 @@
                   </td>
                   <td class="text-center">
                     <button
-                      class="btn btn-sm btn-outline-primary"
+                      class="btn btn-sm btn-info"
                       @click="viewEmailDetails(email)"
                       title="View details"
                     >
-                      <span>👁️</span>
+                      <span>View</span>
                     </button>
                   </td>
                 </tr>
@@ -342,6 +397,13 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useAuth } from '../auth/authService'
 import { sendEmail, getEmailHistory } from '../services/emailService'
 import { sanitizeText } from '../utils/security'
+import {
+  exportToCSV as exportCSVUtil,
+  exportToPDF as exportPDFUtil,
+  generateExportFilename,
+  validateExportData,
+  formatDateTime as formatDateTimeUtil
+} from '../utils/exportUtils'
 
 const { currentUser } = useAuth()
 
@@ -368,6 +430,14 @@ const sortOrder = ref('desc')
 const currentPage = ref(1)
 const pageSize = ref(10)
 const selectedEmail = ref(null)
+
+// Export data
+const exporting = ref(false)
+const exportType = ref('csv') // or 'pdf'
+const exportProgress = ref(0)
+const exportMessage = ref('')
+const exportSuccess = ref('')
+const exportError = ref('')
 
 // Form validation
 const recipientValid = computed(() => {
@@ -569,6 +639,156 @@ const viewEmailDetails = (email) => {
 
 const closeModal = () => {
   selectedEmail.value = null
+}
+
+const exportToCSV = async () => {
+  if (exporting.value) return
+
+  exporting.value = true
+  exportType.value = 'csv'
+  exportProgress.value = 0
+  exportMessage.value = 'Preparing CSV export...'
+  exportSuccess.value = ''
+  exportError.value = ''
+
+  try {
+    validateExportData(filteredEmails.value)
+
+    if (filteredEmails.value.length > 5000) {
+      exportMessage.value = 'Large dataset detected. This may take a moment...'
+    }
+
+    const columns = [
+      { key: 'timestamp', label: 'Date & Time', format: (val) => formatDateTimeUtil(val) },
+      { key: 'to', label: 'Recipient' },
+      { key: 'subject', label: 'Subject' },
+      { key: 'status', label: 'Status', format: (val) => val === 'success' ? 'Success' : 'Failed' },
+      { key: 'fromName', label: 'Sender Name' },
+      { key: 'fromEmail', label: 'Sender Email' },
+      { key: 'messageLength', label: 'Message Size (chars)' }
+    ]
+
+    const filters = {
+      search: searchQuery.value,
+      status: statusFilter.value,
+      sortBy: sortBy.value,
+      sortOrder: sortOrder.value
+    }
+
+    const filename = generateExportFilename('email_logs', 'csv', filters)
+
+    const result = await exportCSVUtil({
+      data: filteredEmails.value,
+      columns,
+      filename,
+      onProgress: (progress) => {
+        exportProgress.value = progress
+        if (progress < 30) {
+          exportMessage.value = 'Preparing data...'
+        } else if (progress < 80) {
+          exportMessage.value = 'Generating CSV file...'
+        } else if (progress < 100) {
+          exportMessage.value = 'Finalizing export...'
+        }
+      }
+    })
+
+    exportMessage.value = 'CSV export completed!'
+    exportSuccess.value = `Successfully exported ${result.rowCount} email records to ${filename}`
+
+    setTimeout(() => {
+      exportSuccess.value = ''
+    }, 5000)
+
+  } catch (error) {
+    console.error('CSV export error:', error)
+    exportMessage.value = 'Export failed'
+    exportError.value = error.message || 'Failed to export CSV. Please try again.'
+
+    setTimeout(() => {
+      exportError.value = ''
+    }, 10000)
+  } finally {
+    setTimeout(() => {
+      exporting.value = false
+      exportProgress.value = 0
+    }, 1000)
+  }
+}
+
+const exportToPDF = async () => {
+  if (exporting.value) return
+
+  exporting.value = true
+  exportType.value = 'pdf'
+  exportProgress.value = 0
+  exportMessage.value = 'Preparing PDF export...'
+  exportSuccess.value = ''
+  exportError.value = ''
+
+  try {
+    validateExportData(filteredEmails.value)
+
+    if (filteredEmails.value.length > 1000) {
+      exportMessage.value = 'Large dataset detected. PDF generation may take a moment...'
+    }
+
+    const columns = [
+      { key: 'timestamp', label: 'Date & Time', format: (val) => formatDateTimeUtil(val) },
+      { key: 'to', label: 'Recipient' },
+      { key: 'subject', label: 'Subject' },
+      { key: 'status', label: 'Status', format: (val) => val === 'success' ? 'Success' : 'Failed' },
+      { key: 'fromName', label: 'Sender' }
+    ]
+
+    const filters = {
+      search: searchQuery.value,
+      status: statusFilter.value
+    }
+
+    const filename = generateExportFilename('email_logs', 'pdf', filters)
+
+    const result = await exportPDFUtil({
+      data: filteredEmails.value,
+      columns,
+      filename,
+      title: 'Email History Report',
+      filters,
+      onProgress: (progress) => {
+        exportProgress.value = progress
+        if (progress < 20) {
+          exportMessage.value = 'Initializing PDF...'
+        } else if (progress < 50) {
+          exportMessage.value = 'Formatting data...'
+        } else if (progress < 90) {
+          exportMessage.value = 'Generating PDF pages...'
+        } else {
+          exportMessage.value = 'Finalizing document...'
+        }
+      }
+    })
+
+    exportMessage.value = 'PDF export completed!'
+    exportSuccess.value = `Successfully exported ${result.rowCount} email records to ${filename}`
+
+    setTimeout(() => {
+      exportSuccess.value = ''
+    }, 5000)
+
+  } catch (error) {
+    console.error('PDF export error:', error)
+    exportMessage.value = 'Export failed'
+    exportError.value = error.message || 'Failed to export PDF. Please try again.'
+
+    setTimeout(() => {
+      exportError.value = ''
+    }, 10000)
+  } finally {
+    setTimeout(() => {
+      exporting.value = false
+      exportProgress.value = 0
+    }, 1000)
+  }
 }
 
 // Watch for filter changes

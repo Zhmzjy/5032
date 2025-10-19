@@ -16,11 +16,6 @@ import { doc, setDoc, getDoc } from 'firebase/firestore'
 const currentUser = ref(null)
 const isAuthenticated = computed(() => !!currentUser.value)
 
-let authReadyResolve
-export const authReady = new Promise((resolve) => {
-  authReadyResolve = resolve
-})
-
 const getUserDataFromFirestore = async (userId) => {
   try {
     const userDocRef = doc(db, 'userData', userId)
@@ -202,15 +197,20 @@ const initAuth = () => {
       } else {
         currentUser.value = null
       }
+      resolve(user)
+    })
+  })
+}
+
 
       if (authReadyResolve) {
         authReadyResolve(user)
       }
 
-      resolve(user)
-    })
-  })
-}
+
+      if (authReadyResolve) {
+        authReadyResolve(user)
+      }
 
 const updateUserRole = async (userId, newRole) => {
   await saveUserDataToFirestore(userId, { role: newRole })
@@ -302,4 +302,3 @@ export {
   resendVerificationEmail,
   reloadUserStatus
 }
-
