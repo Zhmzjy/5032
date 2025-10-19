@@ -1,6 +1,6 @@
 <template>
   <div class="home-page">
-    <div class="video-hero">
+    <section class="video-hero" aria-label="Welcome section">
       <video
         :src="videoSrc"
         autoplay
@@ -8,15 +8,16 @@
         loop
         playsinline
         class="background-video"
+        aria-hidden="true"
       ></video>
 
-      <div class="video-overlay"></div>
+      <div class="video-overlay" aria-hidden="true"></div>
 
       <div class="hero-content">
         <h1 class="hero-title">Welcome To FitTogether</h1>
         <p class="hero-subtitle">Join local activities, meet new friends, and stay fit together.</p>
       </div>
-    </div>
+    </section>
 
     <FeatureGrid />
   </div>

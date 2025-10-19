@@ -24,7 +24,7 @@
       @click="closeDrawer"
     ></div>
 
-    <div class="drawer" :class="{ 'drawer-open': isDrawerOpen }">
+    <div class="drawer" :class="{ 'drawer-open': isDrawerOpen }" aria-hidden="!isDrawerOpen">
       <div class="drawer-header">
         <button
           class="close-btn"
@@ -94,7 +94,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../auth/authService'
 
@@ -110,6 +110,20 @@ const toggleDrawer = () => {
 const closeDrawer = () => {
   isDrawerOpen.value = false
 }
+
+const handleKeyDown = (event) => {
+  if (event.key === 'Escape' && isDrawerOpen.value) {
+    closeDrawer()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleKeyDown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyDown)
+})
 
 const handleLogout = async () => {
   try {

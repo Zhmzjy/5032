@@ -224,47 +224,87 @@
 
           <!-- Table -->
           <div class="table-responsive">
-            <table class="table table-hover table-striped mb-0">
+            <table class="table table-hover table-striped mb-0" role="table" aria-label="Email history">
               <thead class="table-light">
                 <tr>
-                  <th @click="handleSort('timestamp')" class="sortable">
+                  <th
+                    scope="col"
+                    @click="handleSort('timestamp')"
+                    @keydown.enter="handleSort('timestamp')"
+                    @keydown.space.prevent="handleSort('timestamp')"
+                    class="sortable"
+                    tabindex="0"
+                    role="button"
+                    :aria-sort="sortBy === 'timestamp' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'"
+                    aria-label="Sort by time"
+                  >
                     Time
-                    <span v-if="sortBy === 'timestamp'">
+                    <span v-if="sortBy === 'timestamp'" aria-hidden="true">
                       {{ sortOrder === 'asc' ? '↑' : '↓' }}
                     </span>
                   </th>
-                  <th @click="handleSort('to')" class="sortable">
+                  <th
+                    scope="col"
+                    @click="handleSort('to')"
+                    @keydown.enter="handleSort('to')"
+                    @keydown.space.prevent="handleSort('to')"
+                    class="sortable"
+                    tabindex="0"
+                    role="button"
+                    :aria-sort="sortBy === 'to' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'"
+                    aria-label="Sort by recipient"
+                  >
                     Recipient
-                    <span v-if="sortBy === 'to'">
+                    <span v-if="sortBy === 'to'" aria-hidden="true">
                       {{ sortOrder === 'asc' ? '↑' : '↓' }}
                     </span>
                   </th>
-                  <th @click="handleSort('subject')" class="sortable">
+                  <th
+                    scope="col"
+                    @click="handleSort('subject')"
+                    @keydown.enter="handleSort('subject')"
+                    @keydown.space.prevent="handleSort('subject')"
+                    class="sortable"
+                    tabindex="0"
+                    role="button"
+                    :aria-sort="sortBy === 'subject' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'"
+                    aria-label="Sort by subject"
+                  >
                     Subject
-                    <span v-if="sortBy === 'subject'">
+                    <span v-if="sortBy === 'subject'" aria-hidden="true">
                       {{ sortOrder === 'asc' ? '↑' : '↓' }}
                     </span>
                   </th>
-                  <th @click="handleSort('status')" class="sortable text-center">
+                  <th
+                    scope="col"
+                    @click="handleSort('status')"
+                    @keydown.enter="handleSort('status')"
+                    @keydown.space.prevent="handleSort('status')"
+                    class="sortable text-center"
+                    tabindex="0"
+                    role="button"
+                    :aria-sort="sortBy === 'status' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'"
+                    aria-label="Sort by status"
+                  >
                     Status
-                    <span v-if="sortBy === 'status'">
+                    <span v-if="sortBy === 'status'" aria-hidden="true">
                       {{ sortOrder === 'asc' ? '↑' : '↓' }}
                     </span>
                   </th>
-                  <th class="text-center">Actions</th>
+                  <th scope="col" class="text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="loadingHistory">
                   <td colspan="5" class="text-center py-4">
-                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                    Loading email logs...
+                    <div class="spinner-border spinner-border-sm me-2" role="status" aria-label="Loading"></div>
+                    <span>Loading email logs...</span>
                   </td>
                 </tr>
                 <tr v-else-if="filteredEmails.length === 0">
                   <td colspan="5" class="text-center py-4 text-muted">
-                    <div class="mb-2">📭</div>
-                    {{ searchQuery ? 'No emails found matching your search.' : 'No emails sent yet.' }}
+                    <div class="mb-2" aria-hidden="true">📭</div>
+                    <span>{{ searchQuery ? 'No emails found matching your search.' : 'No emails sent yet.' }}</span>
                   </td>
                 </tr>
                 <tr v-else v-for="email in paginatedEmails" :key="email.id">
@@ -285,15 +325,17 @@
                     <span
                       class="badge"
                       :class="email.status === 'success' ? 'bg-success' : 'bg-danger'"
+                      role="status"
                     >
-                      {{ email.status === 'success' ? '✓ Success' : '✗ Failed' }}
+                      <span aria-hidden="true">{{ email.status === 'success' ? '✓' : '✗' }}</span>
+                      <span>{{ email.status === 'success' ? ' Success' : ' Failed' }}</span>
                     </span>
                   </td>
                   <td class="text-center">
                     <button
                       class="btn btn-sm btn-info"
                       @click="viewEmailDetails(email)"
-                      title="View details"
+                      :aria-label="`View details for email to ${email.to}`"
                     >
                       <span>View</span>
                     </button>
@@ -305,13 +347,18 @@
 
           <!-- Pagination -->
           <div class="card-footer d-flex justify-content-between align-items-center">
-            <div class="text-muted small">
+            <div class="text-muted small" role="status" aria-live="polite">
               Showing {{ startIndex + 1 }} to {{ endIndex }} of {{ filteredEmails.length }} emails
             </div>
             <nav aria-label="Email pagination">
               <ul class="pagination pagination-sm mb-0">
                 <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                  <button class="page-link" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">
+                  <button
+                    class="page-link"
+                    @click="goToPage(currentPage - 1)"
+                    :disabled="currentPage === 1"
+                    aria-label="Go to previous page"
+                  >
                     Previous
                   </button>
                 </li>
@@ -321,12 +368,22 @@
                   class="page-item"
                   :class="{ active: page === currentPage }"
                 >
-                  <button class="page-link" @click="goToPage(page)">
+                  <button
+                    class="page-link"
+                    @click="goToPage(page)"
+                    :aria-label="`Go to page ${page}`"
+                    :aria-current="page === currentPage ? 'page' : undefined"
+                  >
                     {{ page }}
                   </button>
                 </li>
                 <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                  <button class="page-link" @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages">
+                  <button
+                    class="page-link"
+                    @click="goToPage(currentPage + 1)"
+                    :disabled="currentPage === totalPages"
+                    aria-label="Go to next page"
+                  >
                     Next
                   </button>
                 </li>

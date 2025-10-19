@@ -1,7 +1,8 @@
 <template>
   <div id="app">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <Navbar />
-    <main class="main-content">
+    <main id="main-content" class="main-content" role="main">
       <RouterView />
     </main>
   </div>
